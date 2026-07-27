@@ -1,0 +1,88 @@
+/**
+ * Typed wrappers over the Tauri command surface.
+ *
+ * Every call the UI makes goes through here, so the argument and return types
+ * are checked against the generated bindings in one place instead of being
+ * re-stated at each call site.
+ */
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+
+import type { AppEvent } from "@/shared/types/AppEvent";
+import type { AppMode } from "@/shared/types/AppMode";
+import type { AppSettings } from "@/shared/types/AppSettings";
+import type { DependencyId } from "@/shared/types/DependencyId";
+import type { HostingInfo } from "@/shared/types/HostingInfo";
+import type { Invite } from "@/shared/types/Invite";
+import type { PreflightReport } from "@/shared/types/PreflightReport";
+import type { SessionState } from "@/shared/types/SessionState";
+import type { SettingsPatch } from "@/shared/types/SettingsPatch";
+
+/** Must match `ipc::EVENT_CHANNEL`. */
+const EVENT_CHANNEL = "syncparty://event";
+
+/**
+ * The shape `SyncPartyError` serialises to.
+ *
+ * `kind` is a stable discriminant, so recovery logic can branch on it rather
+ * than matching on a translated message.
+ */
+export interface BackendError {
+  kind: string;
+  message: string;
+}
+
+export function isBackendError(value: unknown): value is BackendError {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "kind" in value &&
+    "message" in value
+  );
+}
+
+/** Turns anything thrown by `invoke` into a message worth showing. */
+export function errorMessage(error: unknown): string {
+  if (isBackendError(error)) return error.message;
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+export const ipc = {
+  getSettings: () => invoke<AppSettings>("get_settings"),
+
+  updateSettings: (patch: SettingsPatch) =>
+    invoke<AppSettings>("update_settings", { patch }),
+
+  runPreflight: (mode: AppMode) =>
+    invoke<PreflightReport>("run_preflight", { mode }),
+
+  /** Progress arrives as `installProgress` events while this is in flight. */
+  installDependency: (id: DependencyId) =>
+    invoke<void>("install_dependency", { id }),
+
+  startHosting: () => invoke<HostingInfo>("start_hosting"),
+  stopHosting: () => invoke<void>("stop_hosting"),
+  sessionState: () => invoke<SessionState>("session_state"),
+
+  /** Accepts a bare code, a deep link, or a whole chat message. */
+  decodeInvite: (text: string) => invoke<Invite>("decode_invite", { text }),
+  joinParty: (invite: Invite) => invoke<void>("join_party", { invite }),
+
+  discordStatus: () => invoke<boolean>("discord_status"),
+  setDiscordWebhook: (url: string) =>
+    invoke<void>("set_discord_webhook", { url }),
+  clearDiscordWebhook: () => invoke<void>("clear_discord_webhook"),
+  testDiscordWebhook: () => invoke<void>("test_discord_webhook"),
+};
+
+/**
+ * Subscribes to backend events.
+ *
+ * Returns the unlisten function, which callers must invoke on teardown —
+ * React strict mode mounts effects twice, and a leaked listener would double
+ * every event.
+ */
+export function onAppEvent(handler: (event: AppEvent) => void) {
+  return listen<AppEvent>(EVENT_CHANNEL, ({ payload }) => handler(payload));
+}

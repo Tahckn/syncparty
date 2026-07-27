@@ -87,7 +87,10 @@ impl UvManagedServer {
     fn arguments(&self, config: &ServerConfig) -> Vec<String> {
         vec![
             "-u".to_owned(), // unbuffered, so log lines arrive as they happen
-            self.paths.server_entrypoint().to_string_lossy().into_owned(),
+            self.paths
+                .server_entrypoint()
+                .to_string_lossy()
+                .into_owned(),
             "--port".to_owned(),
             config.port.to_string(),
             "--isolate-rooms".to_owned(),

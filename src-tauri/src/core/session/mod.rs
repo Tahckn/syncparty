@@ -136,10 +136,9 @@ impl PartySession {
             AuthFlow::NeedsLogin { auth_url } => {
                 // Published once. The UI opens it; nothing here does, which is
                 // what stops the browser-tab storm the prototype produced.
-                self.bus
-                    .publish(AppEvent::TailscaleLoginRequired {
-                        auth_url: auth_url.clone(),
-                    });
+                self.bus.publish(AppEvent::TailscaleLoginRequired {
+                    auth_url: auth_url.clone(),
+                });
                 return Err(SyncPartyError::TailscaleLoginRequired { auth_url });
             }
         };
@@ -150,7 +149,9 @@ impl PartySession {
         let password = self
             .secrets
             .get_or_create(SecretKey::ServerPassword, PASSWORD_LENGTH)?;
-        let salt = self.secrets.get_or_create(SecretKey::ServerSalt, SALT_LENGTH)?;
+        let salt = self
+            .secrets
+            .get_or_create(SecretKey::ServerSalt, SALT_LENGTH)?;
 
         self.transition(SessionState::Starting {
             step: StartupStep::StartingServer,
@@ -186,8 +187,13 @@ impl PartySession {
             })
             .await;
 
-            self.attach_monitor(&address.to_string(), settings.port, &password, &settings.room)
-                .await;
+            self.attach_monitor(
+                &address.to_string(),
+                settings.port,
+                &password,
+                &settings.room,
+            )
+            .await;
             true
         } else {
             false

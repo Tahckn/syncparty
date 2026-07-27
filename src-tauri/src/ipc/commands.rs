@@ -17,16 +17,27 @@ use crate::ipc::AppState;
 
 /// A partial settings update. Absent fields are left alone, so the UI can send
 /// just the toggle the user touched.
+///
+/// `#[ts(optional)]` matters here: without it every field generates as
+/// `T | null`, which would force the frontend to spell out all seven on every
+/// call and defeat the point of a patch.
 #[derive(Debug, Default, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase", default)]
 pub struct SettingsPatch {
+    #[ts(optional)]
     pub mode: Option<AppMode>,
+    #[ts(optional)]
     pub port: Option<u16>,
+    #[ts(optional)]
     pub room: Option<String>,
+    #[ts(optional)]
     pub nickname: Option<String>,
+    #[ts(optional)]
     pub language: Option<String>,
+    #[ts(optional)]
     pub monitor_enabled: Option<bool>,
+    #[ts(optional)]
     pub discord_enabled: Option<bool>,
 }
 
@@ -120,11 +131,7 @@ pub fn clear_discord_webhook(state: State<'_, AppState>) -> Result<()> {
 pub async fn test_discord_webhook(state: State<'_, AppState>) -> Result<()> {
     let language = state.settings.get().language;
 
-    if state
-        .discord
-        .send(&notify::webhook_test(&language))
-        .await?
-    {
+    if state.discord.send(&notify::webhook_test(&language)).await? {
         Ok(())
     } else {
         Err(SyncPartyError::Config(

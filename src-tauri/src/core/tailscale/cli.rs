@@ -85,12 +85,10 @@ impl TailscaleClient for CliTailscaleClient {
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .spawn()
-            .map_err(|error| {
-                SyncPartyError::CommandFailed {
-                    command: "tailscale up".to_owned(),
-                    status: "could not start".to_owned(),
-                    stderr: error.to_string(),
-                }
+            .map_err(|error| SyncPartyError::CommandFailed {
+                command: "tailscale up".to_owned(),
+                status: "could not start".to_owned(),
+                stderr: error.to_string(),
             })?;
 
         let deadline = tokio::time::Instant::now() + CONNECT_TIMEOUT;
@@ -117,7 +115,8 @@ impl TailscaleClient for CliTailscaleClient {
     }
 
     async fn whois(&self, ip: IpAddr) -> Result<PeerIdentity> {
-        let output = process::capture(&self.executable, ["whois", "--json", &ip.to_string()]).await?;
+        let output =
+            process::capture(&self.executable, ["whois", "--json", &ip.to_string()]).await?;
         let whois: WhoisJson = serde_json::from_str(&output.stdout)?;
 
         let profile = whois.user_profile.unwrap_or_default();

@@ -136,9 +136,7 @@ impl PreflightReport {
     }
 
     pub fn missing(&self) -> impl Iterator<Item = &PreflightItem> {
-        self.items
-            .iter()
-            .filter(|item| !item.status.is_installed())
+        self.items.iter().filter(|item| !item.status.is_installed())
     }
 }
 

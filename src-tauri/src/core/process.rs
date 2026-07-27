@@ -53,13 +53,15 @@ where
     S: AsRef<OsStr>,
 {
     let program_name = program.as_ref().to_string_lossy().into_owned();
-    let output = command(program).args(args).output().await.map_err(|error| {
-        SyncPartyError::CommandFailed {
+    let output = command(program)
+        .args(args)
+        .output()
+        .await
+        .map_err(|error| SyncPartyError::CommandFailed {
             command: program_name.clone(),
             status: "could not start".to_owned(),
             stderr: error.to_string(),
-        }
-    })?;
+        })?;
 
     let captured = CapturedOutput {
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),

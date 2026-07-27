@@ -47,9 +47,7 @@ impl ServerRuntimeDependency {
     }
 
     fn source_url() -> String {
-        format!(
-            "https://github.com/Syncplay/syncplay/archive/refs/tags/v{SYNCPLAY_VERSION}.tar.gz"
-        )
+        format!("https://github.com/Syncplay/syncplay/archive/refs/tags/v{SYNCPLAY_VERSION}.tar.gz")
     }
 
     /// Locates `uv`, installing it through the package manager if needed.
@@ -127,12 +125,12 @@ impl ServerRuntimeDependency {
     }
 
     /// Creates the virtual environment and installs the server's dependencies.
-    async fn build_environment(
-        &self,
-        uv: &Path,
-        progress: &dyn ProgressSink,
-    ) -> Result<()> {
-        progress.report("creating environment", None, Some(format!("Python {PYTHON_VERSION}")));
+    async fn build_environment(&self, uv: &Path, progress: &dyn ProgressSink) -> Result<()> {
+        progress.report(
+            "creating environment",
+            None,
+            Some(format!("Python {PYTHON_VERSION}")),
+        );
 
         let venv = self.paths.server_venv_dir();
         let _ = std::fs::remove_dir_all(&venv);
@@ -193,7 +191,12 @@ impl Dependency for ServerRuntimeDependency {
 
         DependencyStatus::Installed {
             version: Some(SYNCPLAY_VERSION.to_owned()),
-            path: Some(self.paths.server_runtime_dir().to_string_lossy().into_owned()),
+            path: Some(
+                self.paths
+                    .server_runtime_dir()
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
         }
     }
 
@@ -237,12 +240,12 @@ fn single_child_directory(parent: &Path) -> Result<std::path::PathBuf> {
         .map(|entry| entry.path())
         .filter(|path| path.is_dir());
 
-    let first = directories.next().ok_or_else(|| {
-        SyncPartyError::InstallFailed {
+    let first = directories
+        .next()
+        .ok_or_else(|| SyncPartyError::InstallFailed {
             name: DISPLAY_NAME.to_owned(),
             reason: "the downloaded archive was empty".to_owned(),
-        }
-    })?;
+        })?;
 
     if directories.next().is_some() {
         return Err(SyncPartyError::InstallFailed {

@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/* Dark only, on purpose: this is an app you open with the lights off, and a
+   single palette keeps the surface area small. */
+@theme {
+  --color-canvas: oklch(0.17 0.012 275);
+  --color-surface: oklch(0.21 0.014 275);
+  --color-surface-raised: oklch(0.25 0.016 275);
+  --color-line: oklch(0.31 0.018 275);
+
+  --color-ink: oklch(0.95 0.005 275);
+  --color-ink-muted: oklch(0.71 0.012 275);
+  --color-ink-faint: oklch(0.56 0.014 275);
+
+  /* Warm, like a projector lamp. */
+  --color-accent: oklch(0.79 0.15 68);
+  --color-accent-strong: oklch(0.72 0.16 62);
+  --color-accent-ink: oklch(0.2 0.03 68);
+
+  --color-good: oklch(0.76 0.14 158);
+  --color-warn: oklch(0.8 0.14 82);
+  --color-bad: oklch(0.68 0.18 22);
+
+  --radius-panel: 0.875rem;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+
+  /* A desktop app should not feel like a web page. */
+  user-select: none;
+  cursor: default;
+  overflow: hidden;
+}
+
+/* Anything the user might genuinely want to copy opts back in. */
+.selectable {
+  user-select: text;
+  cursor: text;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-faint);
+  background-clip: content-box;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}

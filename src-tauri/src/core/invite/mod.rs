@@ -69,9 +69,9 @@ impl Invite {
             .ok_or_else(|| SyncPartyError::InvalidInvite("no invite code found".to_owned()))?;
 
         let encoded = token.trim_start_matches(TOKEN_PREFIX);
-        let json = URL_SAFE_NO_PAD
-            .decode(encoded)
-            .map_err(|_| SyncPartyError::InvalidInvite("the code is not valid base64".to_owned()))?;
+        let json = URL_SAFE_NO_PAD.decode(encoded).map_err(|_| {
+            SyncPartyError::InvalidInvite("the code is not valid base64".to_owned())
+        })?;
 
         let payload: Payload = serde_json::from_slice(&json)
             .map_err(|_| SyncPartyError::InvalidInvite("the code is damaged".to_owned()))?;

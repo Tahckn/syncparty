@@ -80,10 +80,7 @@ impl ConfigStore {
 
         let settings = match std::fs::read_to_string(&file) {
             Ok(raw) => serde_json::from_str(&raw).map_err(|error| {
-                SyncPartyError::Config(format!(
-                    "{} could not be parsed: {error}",
-                    file.display()
-                ))
+                SyncPartyError::Config(format!("{} could not be parsed: {error}", file.display()))
             })?,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => AppSettings::default(),
             Err(error) => return Err(error.into()),

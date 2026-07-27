@@ -73,11 +73,13 @@ impl ClientLauncher {
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
 
-        command.spawn().map_err(|error| SyncPartyError::CommandFailed {
-            command: self.client.to_string_lossy().into_owned(),
-            status: "could not start".to_owned(),
-            stderr: error.to_string(),
-        })?;
+        command
+            .spawn()
+            .map_err(|error| SyncPartyError::CommandFailed {
+                command: self.client.to_string_lossy().into_owned(),
+                status: "could not start".to_owned(),
+                stderr: error.to_string(),
+            })?;
 
         Ok(())
     }
@@ -133,7 +135,10 @@ mod tests {
     fn folds_the_port_into_the_host_argument() {
         let arguments = launcher_without_player().arguments(&sample_invite(), "ahmet");
 
-        let host_index = arguments.iter().position(|a| a == "--host").expect("--host");
+        let host_index = arguments
+            .iter()
+            .position(|a| a == "--host")
+            .expect("--host");
         assert_eq!(arguments[host_index + 1], "movie-box.tail1a2b3.ts.net:8999");
         assert!(
             !arguments.iter().any(|a| a == "--port"),

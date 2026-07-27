@@ -8,8 +8,7 @@ mod server;
 
 pub use launcher::{find_client, find_mpv, ClientLauncher};
 pub use monitor::{
-    MonitorConfig, RoomMonitor, RoomSnapshot, RoomView, WatchedFile, WatcherView,
-    MONITOR_NICKNAME,
+    MonitorConfig, RoomMonitor, RoomSnapshot, RoomView, WatchedFile, WatcherView, MONITOR_NICKNAME,
 };
 pub use protocol::hash_password;
 pub use server::{ServerConfig, ServerController, ServerState, UvManagedServer};

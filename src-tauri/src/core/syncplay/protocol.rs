@@ -220,8 +220,9 @@ pub enum ServerMessage {
 
 impl ServerMessage {
     pub fn from_line(line: &str) -> Result<Self> {
-        let value: serde_json::Value = serde_json::from_str(line.trim())
-            .map_err(|error| SyncPartyError::MonitorFailed(format!("malformed message: {error}")))?;
+        let value: serde_json::Value = serde_json::from_str(line.trim()).map_err(|error| {
+            SyncPartyError::MonitorFailed(format!("malformed message: {error}"))
+        })?;
 
         let Some(object) = value.as_object() else {
             return Ok(Self::Ignored);
@@ -368,7 +369,10 @@ mod tests {
 
         let updates = user_updates(&set).expect("user updates");
         let update = &updates["ahmet"];
-        assert_eq!(update.room.as_ref().unwrap().name.as_deref(), Some("MovieNight"));
+        assert_eq!(
+            update.room.as_ref().unwrap().name.as_deref(),
+            Some("MovieNight")
+        );
         assert!(update.event.as_ref().unwrap().joined.is_some());
         assert!(update.event.as_ref().unwrap().left.is_none());
     }
@@ -393,7 +397,9 @@ mod tests {
         let message =
             ServerMessage::from_line(r#"{"Error":{"message":"Invalid password"}}"#).expect("parse");
 
-        assert!(matches!(message, ServerMessage::Error { message } if message == "Invalid password"));
+        assert!(
+            matches!(message, ServerMessage::Error { message } if message == "Invalid password")
+        );
     }
 
     #[test]

@@ -95,8 +95,9 @@ pub fn generate_token(length: usize) -> Result<String> {
 
     while token.len() < length {
         let mut buffer = [0_u8; 32];
-        getrandom::fill(&mut buffer)
-            .map_err(|error| SyncPartyError::Other(format!("no secure randomness available: {error}")))?;
+        getrandom::fill(&mut buffer).map_err(|error| {
+            SyncPartyError::Other(format!("no secure randomness available: {error}"))
+        })?;
 
         for byte in buffer {
             if token.len() == length {
@@ -125,9 +126,7 @@ mod tests {
     fn tokens_use_only_the_unambiguous_alphabet() {
         let token = generate_token(256).expect("token");
 
-        assert!(token
-            .bytes()
-            .all(|byte| TOKEN_ALPHABET.contains(&byte)));
+        assert!(token.bytes().all(|byte| TOKEN_ALPHABET.contains(&byte)));
     }
 
     #[test]

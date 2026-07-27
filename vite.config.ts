@@ -1,14 +1,23 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import path from "node:path";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
-// https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
 
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
+  resolve: {
+    alias: {
+      // @ts-expect-error import.meta.dirname is a nodejs global
+      "@": path.resolve(import.meta.dirname, "./src"),
+    },
+  },
+
+  // Vite options tailored for Tauri development, applied by `tauri dev` and
+  // `tauri build`.
   //
   // 1. prevent Vite from obscuring rust errors
   clearScreen: false,

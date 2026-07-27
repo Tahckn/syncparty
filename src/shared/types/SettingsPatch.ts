@@ -4,5 +4,9 @@ import type { AppMode } from "./AppMode";
 /**
  * A partial settings update. Absent fields are left alone, so the UI can send
  * just the toggle the user touched.
+ *
+ * `#[ts(optional)]` matters here: without it every field generates as
+ * `T | null`, which would force the frontend to spell out all seven on every
+ * call and defeat the point of a patch.
  */
-export type SettingsPatch = { mode: AppMode | null, port: number | null, room: string | null, nickname: string | null, language: string | null, monitorEnabled: boolean | null, discordEnabled: boolean | null, };
+export type SettingsPatch = { mode?: AppMode, port?: number, room?: string, nickname?: string, language?: string, monitorEnabled?: boolean, discordEnabled?: boolean, };

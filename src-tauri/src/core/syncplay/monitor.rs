@@ -272,10 +272,7 @@ async fn session(config: &MonitorConfig, snapshot: &watch::Sender<RoomSnapshot>)
     Ok(())
 }
 
-async fn send(
-    writer: &mut tokio::net::tcp::OwnedWriteHalf,
-    message: &ClientMessage,
-) -> Result<()> {
+async fn send(writer: &mut tokio::net::tcp::OwnedWriteHalf, message: &ClientMessage) -> Result<()> {
     writer
         .write_all(message.to_line()?.as_bytes())
         .await
@@ -355,7 +352,9 @@ mod tests {
             }}}"#,
         );
 
-        assert!(!RoomSnapshot::from_list(&rooms, MONITOR_NICKNAME).rooms[0].everyone_on_the_same_file);
+        assert!(
+            !RoomSnapshot::from_list(&rooms, MONITOR_NICKNAME).rooms[0].everyone_on_the_same_file
+        );
     }
 
     #[test]
@@ -367,7 +366,9 @@ mod tests {
             }}}"#,
         );
 
-        assert!(RoomSnapshot::from_list(&rooms, MONITOR_NICKNAME).rooms[0].everyone_on_the_same_file);
+        assert!(
+            RoomSnapshot::from_list(&rooms, MONITOR_NICKNAME).rooms[0].everyone_on_the_same_file
+        );
     }
 
     #[test]
@@ -397,7 +398,11 @@ mod tests {
         let snapshot = RoomSnapshot::from_list(&rooms, MONITOR_NICKNAME);
 
         assert_eq!(
-            snapshot.rooms.iter().map(|r| r.name.as_str()).collect::<Vec<_>>(),
+            snapshot
+                .rooms
+                .iter()
+                .map(|r| r.name.as_str())
+                .collect::<Vec<_>>(),
             vec!["Alpha", "Zulu"]
         );
         assert_eq!(

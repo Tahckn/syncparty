@@ -1,0 +1,248 @@
+/**
+ * Every string the UI shows, in both languages.
+ *
+ * A plain object rather than an i18n library: there are two locales and no
+ * pluralisation to speak of, so a dependency would cost more than it saves.
+ * `Messages` is derived from the English set, which makes a missing Turkish
+ * key a type error rather than a blank label at runtime.
+ */
+export const en = {
+  appName: "syncparty",
+
+  "common.back": "Back",
+  "common.cancel": "Cancel",
+  "common.close": "Close",
+  "common.copy": "Copy",
+  "common.copied": "Copied",
+  "common.retry": "Retry",
+  "common.save": "Save",
+  "common.settings": "Settings",
+  "common.loading": "Loading…",
+
+  "mode.host": "Host",
+  "mode.guest": "Guest",
+
+  "onboarding.title": "What are you doing tonight?",
+  "onboarding.subtitle":
+    "You can change this later. Nothing is streamed — everyone plays their own copy of the file.",
+  "onboarding.host.title": "I'm hosting",
+  "onboarding.host.detail":
+    "Runs the server on this machine and gives you an invite link to share.",
+  "onboarding.guest.title": "I'm joining",
+  "onboarding.guest.detail":
+    "Paste the invite you were sent and you're in.",
+
+  "preflight.title": "Setup check",
+  "preflight.subtitle": "syncparty needs these installed.",
+  "preflight.checking": "Checking…",
+  "preflight.installed": "Ready",
+  "preflight.missing": "Not installed",
+  "preflight.install": "Install",
+  "preflight.installing": "Installing…",
+  "preflight.manual": "Download manually",
+  "preflight.elevation": "Asks for administrator permission",
+  "preflight.noAutoInstall":
+    "No automatic installer here — use the download link.",
+  "preflight.allReady": "Everything is ready.",
+  "preflight.recheck": "Check again",
+  "preflight.continue": "Continue",
+
+  "host.title": "Host",
+  "host.start": "Start movie night",
+  "host.starting": "Starting…",
+  "host.stop": "Stop",
+  "host.idle.hint":
+    "Brings Tailscale up, starts the server and creates your invite.",
+  "host.step.connectingTailscale": "Connecting to Tailscale…",
+  "host.step.startingServer": "Starting the Syncplay server…",
+  "host.step.attachingMonitor": "Attaching the room panel…",
+  "host.live": "Live",
+  "host.invite.title": "Invite",
+  "host.invite.link": "Join link",
+  "host.invite.code": "Invite code",
+  "host.invite.hint":
+    "Send the link — clicking it opens syncparty already filled in.",
+  "host.details.title": "Connection details",
+  "host.details.server": "Server",
+  "host.details.room": "Room",
+  "host.details.password": "Password",
+  "host.details.tailscale": "This machine",
+  "host.room.title": "In the room",
+  "host.room.empty": "Nobody has joined yet.",
+  "host.room.disconnected": "Room panel is not connected.",
+  "host.room.monitorOff":
+    "The room panel is switched off. Turn it on in Settings to see who is watching.",
+  "host.room.ready": "Ready",
+  "host.room.notReady": "Not ready",
+  "host.room.noFile": "No file open",
+  "host.room.mismatch": "People have different files open",
+  "host.room.mismatchDetail":
+    "Playback will not stay in sync until everyone opens the same file.",
+  "host.logs.title": "Server log",
+  "host.logs.show": "Show log",
+  "host.logs.hide": "Hide log",
+  "host.logs.empty": "Nothing logged yet.",
+
+  "guest.title": "Join",
+  "guest.paste.label": "Invite code or link",
+  "guest.paste.placeholder": "SP1.… or syncparty://join/…",
+  "guest.paste.hint":
+    "Paste the whole message if you like — syncparty will find the code.",
+  "guest.decode": "Check invite",
+  "guest.join": "Join",
+  "guest.joining": "Opening Syncplay…",
+  "guest.joined":
+    "Syncplay is opening. Open your copy of the file when it appears.",
+  "guest.invite.title": "You've been invited to",
+  "guest.received": "Invite received",
+  "guest.clear": "Use a different invite",
+
+  "settings.title": "Settings",
+  "settings.general": "General",
+  "settings.nickname": "Your name",
+  "settings.nickname.hint": "How you appear to everyone else.",
+  "settings.room": "Room name",
+  "settings.port": "Port",
+  "settings.language": "Language",
+  "settings.mode": "Mode",
+  "settings.monitor": "Room panel",
+  "settings.monitor.hint":
+    "Attaches a hidden Syncplay client so the host can see who is watching what. It appears in everyone's user list as “syncparty-panel”.",
+  "settings.discord": "Discord",
+  "settings.discord.enable": "Announce parties on Discord",
+  "settings.discord.webhook": "Webhook URL",
+  "settings.discord.webhook.placeholder": "https://discord.com/api/webhooks/…",
+  "settings.discord.configured": "A webhook is saved.",
+  "settings.discord.notConfigured": "No webhook saved yet.",
+  "settings.discord.test": "Send test message",
+  "settings.discord.sent": "Test message sent.",
+  "settings.discord.clear": "Remove webhook",
+  "settings.saved": "Saved",
+
+  "error.title": "Something went wrong",
+  "error.tailscale_login_required": "Tailscale needs you to sign in.",
+  "error.openLogin": "Open sign-in page",
+  "error.dependency_missing": "A required program is missing.",
+} as const;
+
+export type MessageKey = keyof typeof en;
+export type Messages = Record<MessageKey, string>;
+
+export const tr: Messages = {
+  appName: "syncparty",
+
+  "common.back": "Geri",
+  "common.cancel": "Vazgeç",
+  "common.close": "Kapat",
+  "common.copy": "Kopyala",
+  "common.copied": "Kopyalandı",
+  "common.retry": "Yeniden dene",
+  "common.save": "Kaydet",
+  "common.settings": "Ayarlar",
+  "common.loading": "Yükleniyor…",
+
+  "mode.host": "Sunucu",
+  "mode.guest": "Misafir",
+
+  "onboarding.title": "Bu akşam ne yapıyorsun?",
+  "onboarding.subtitle":
+    "Bunu sonra değiştirebilirsin. Hiçbir şey yayınlanmaz — herkes kendi dosyasını oynatır.",
+  "onboarding.host.title": "Ben kuruyorum",
+  "onboarding.host.detail":
+    "Sunucuyu bu bilgisayarda çalıştırır ve paylaşacağın davet bağlantısını üretir.",
+  "onboarding.guest.title": "Katılıyorum",
+  "onboarding.guest.detail": "Sana gönderilen daveti yapıştır, hazırsın.",
+
+  "preflight.title": "Kurulum kontrolü",
+  "preflight.subtitle": "syncparty'nin bunlara ihtiyacı var.",
+  "preflight.checking": "Kontrol ediliyor…",
+  "preflight.installed": "Hazır",
+  "preflight.missing": "Kurulu değil",
+  "preflight.install": "Kur",
+  "preflight.installing": "Kuruluyor…",
+  "preflight.manual": "Elle indir",
+  "preflight.elevation": "Yönetici izni ister",
+  "preflight.noAutoInstall":
+    "Burada otomatik kurulum yok — indirme bağlantısını kullan.",
+  "preflight.allReady": "Her şey hazır.",
+  "preflight.recheck": "Tekrar kontrol et",
+  "preflight.continue": "Devam",
+
+  "host.title": "Sunucu",
+  "host.start": "Film gecesini başlat",
+  "host.starting": "Başlatılıyor…",
+  "host.stop": "Durdur",
+  "host.idle.hint":
+    "Tailscale'i açar, sunucuyu başlatır ve davetini oluşturur.",
+  "host.step.connectingTailscale": "Tailscale'e bağlanılıyor…",
+  "host.step.startingServer": "Syncplay sunucusu başlatılıyor…",
+  "host.step.attachingMonitor": "Oda paneli bağlanıyor…",
+  "host.live": "Yayında",
+  "host.invite.title": "Davet",
+  "host.invite.link": "Katılma bağlantısı",
+  "host.invite.code": "Davet kodu",
+  "host.invite.hint":
+    "Bağlantıyı gönder — tıklayınca syncparty hazır dolu olarak açılır.",
+  "host.details.title": "Bağlantı bilgileri",
+  "host.details.server": "Sunucu",
+  "host.details.room": "Oda",
+  "host.details.password": "Parola",
+  "host.details.tailscale": "Bu bilgisayar",
+  "host.room.title": "Odadakiler",
+  "host.room.empty": "Henüz kimse katılmadı.",
+  "host.room.disconnected": "Oda paneli bağlı değil.",
+  "host.room.monitorOff":
+    "Oda paneli kapalı. Kimin ne izlediğini görmek için Ayarlar'dan aç.",
+  "host.room.ready": "Hazır",
+  "host.room.notReady": "Hazır değil",
+  "host.room.noFile": "Dosya açılmadı",
+  "host.room.mismatch": "Farklı dosyalar açık",
+  "host.room.mismatchDetail":
+    "Herkes aynı dosyayı açmadan oynatma senkron kalmaz.",
+  "host.logs.title": "Sunucu kaydı",
+  "host.logs.show": "Kaydı göster",
+  "host.logs.hide": "Kaydı gizle",
+  "host.logs.empty": "Henüz kayıt yok.",
+
+  "guest.title": "Katıl",
+  "guest.paste.label": "Davet kodu veya bağlantı",
+  "guest.paste.placeholder": "SP1.… veya syncparty://join/…",
+  "guest.paste.hint":
+    "İstersen mesajın tamamını yapıştır — syncparty kodu kendi bulur.",
+  "guest.decode": "Daveti kontrol et",
+  "guest.join": "Katıl",
+  "guest.joining": "Syncplay açılıyor…",
+  "guest.joined": "Syncplay açılıyor. Açıldığında kendi dosyanı seç.",
+  "guest.invite.title": "Davet edildiğin oda",
+  "guest.received": "Davet alındı",
+  "guest.clear": "Başka davet kullan",
+
+  "settings.title": "Ayarlar",
+  "settings.general": "Genel",
+  "settings.nickname": "Adın",
+  "settings.nickname.hint": "Diğerlerine böyle görünürsün.",
+  "settings.room": "Oda adı",
+  "settings.port": "Port",
+  "settings.language": "Dil",
+  "settings.mode": "Mod",
+  "settings.monitor": "Oda paneli",
+  "settings.monitor.hint":
+    "Kimin ne izlediğini görebilmek için gizli bir Syncplay istemcisi bağlar. Herkesin kullanıcı listesinde “syncparty-panel” olarak görünür.",
+  "settings.discord": "Discord",
+  "settings.discord.enable": "Film gecelerini Discord'a duyur",
+  "settings.discord.webhook": "Webhook adresi",
+  "settings.discord.webhook.placeholder": "https://discord.com/api/webhooks/…",
+  "settings.discord.configured": "Bir webhook kayıtlı.",
+  "settings.discord.notConfigured": "Henüz webhook kaydedilmedi.",
+  "settings.discord.test": "Test mesajı gönder",
+  "settings.discord.sent": "Test mesajı gönderildi.",
+  "settings.discord.clear": "Webhook'u sil",
+  "settings.saved": "Kaydedildi",
+
+  "error.title": "Bir şeyler ters gitti",
+  "error.tailscale_login_required": "Tailscale girişi yapman gerekiyor.",
+  "error.openLogin": "Giriş sayfasını aç",
+  "error.dependency_missing": "Gerekli bir program eksik.",
+};
+
+export const dictionaries: Record<string, Messages> = { en, tr };

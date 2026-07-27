@@ -95,17 +95,17 @@ impl PackageManagedInstall {
     }
 
     async fn run(&self, progress: &dyn ProgressSink) -> Result<()> {
-        let manager = SystemPackageManager::detect().ok_or_else(|| {
-            SyncPartyError::InstallUnsupported {
+        let manager =
+            SystemPackageManager::detect().ok_or_else(|| SyncPartyError::InstallUnsupported {
                 name: self.display_name.to_owned(),
-            }
-        })?;
+            })?;
 
-        let package = manager.package_for(&self.spec).ok_or_else(|| {
-            SyncPartyError::InstallUnsupported {
-                name: self.display_name.to_owned(),
-            }
-        })?;
+        let package =
+            manager
+                .package_for(&self.spec)
+                .ok_or_else(|| SyncPartyError::InstallUnsupported {
+                    name: self.display_name.to_owned(),
+                })?;
 
         progress.report(
             "installing",

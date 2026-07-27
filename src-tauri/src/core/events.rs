@@ -16,7 +16,11 @@ use crate::core::syncplay::RoomSnapshot;
 /// discriminated union it can exhaustively match on.
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export)]
-#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum AppEvent {
     /// A preflight run finished; carries the full report, not a delta.
     PreflightCompleted { report: PreflightReport },
@@ -127,7 +131,10 @@ pub(crate) mod test_support {
 
     impl EventBus for RecordingEventBus {
         fn publish(&self, event: AppEvent) {
-            self.events.lock().expect("event mutex poisoned").push(event);
+            self.events
+                .lock()
+                .expect("event mutex poisoned")
+                .push(event);
         }
     }
 }

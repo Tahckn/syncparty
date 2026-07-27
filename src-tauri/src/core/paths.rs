@@ -75,7 +75,8 @@ impl AppPaths {
 }
 
 fn platform_data_root() -> Result<PathBuf> {
-    let missing = |var: &str| SyncPartyError::Config(format!("the {var} environment variable is not set"));
+    let missing =
+        |var: &str| SyncPartyError::Config(format!("the {var} environment variable is not set"));
 
     if cfg!(windows) {
         std::env::var_os("LOCALAPPDATA")
