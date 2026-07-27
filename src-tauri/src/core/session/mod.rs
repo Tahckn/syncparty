@@ -277,7 +277,7 @@ impl PartySession {
     /// Opens the Syncplay client on an invite. Used by the guest half.
     pub fn join(&self, invite: &Invite) -> Result<()> {
         let nickname = self.settings.get().nickname;
-        ClientLauncher::discover()?.join(invite, &nickname)
+        ClientLauncher::discover(&self.settings)?.join(invite, &nickname)
     }
 }
 
@@ -318,8 +318,13 @@ mod tests {
         }
     }
 
-    fn session_with(server: Arc<FakeServer>) -> (PartySession, Arc<RecordingEventBus>) {
-        let dir = std::env::temp_dir().join("syncparty-session-test");
+    /// Each test gets its own directory: they run in parallel, and a shared
+    /// one means whichever test wipes it first breaks the others.
+    fn session_with(
+        label: &str,
+        server: Arc<FakeServer>,
+    ) -> (PartySession, Arc<RecordingEventBus>) {
+        let dir = std::env::temp_dir().join(format!("syncparty-session-{label}"));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("temp dir");
 
@@ -344,7 +349,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_new_session_is_idle() {
-        let (session, _) = session_with(Arc::new(FakeServer::default()));
+        let (session, _) = session_with("idle", Arc::new(FakeServer::default()));
 
         assert!(matches!(session.state().await, SessionState::Idle));
     }
@@ -352,7 +357,7 @@ mod tests {
     #[tokio::test]
     async fn stopping_an_idle_session_still_stops_the_server_and_returns_to_idle() {
         let server = Arc::new(FakeServer::default());
-        let (session, bus) = session_with(Arc::clone(&server));
+        let (session, bus) = session_with("stop", Arc::clone(&server));
 
         session.stop_hosting().await.expect("stop");
 
@@ -370,7 +375,7 @@ mod tests {
             fail_on_start: true,
             ..FakeServer::default()
         });
-        let (session, _) = session_with(Arc::clone(&server));
+        let (session, _) = session_with("failed-start", Arc::clone(&server));
 
         // Tailscale is almost certainly absent in CI, so this fails before
         // reaching the server; either way the cleanup path must run.

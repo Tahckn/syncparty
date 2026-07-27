@@ -84,6 +84,18 @@ pub async fn install_dependency(state: State<'_, AppState>, id: DependencyId) ->
     state.dependencies.install(id, state.bus.as_ref()).await
 }
 
+/// Points a dependency at a program the user chose, for portable builds that
+/// automatic detection cannot see. `path` may be the executable or the folder
+/// holding it; passing `null` clears the choice.
+#[tauri::command]
+pub async fn set_dependency_path(
+    state: State<'_, AppState>,
+    id: DependencyId,
+    path: Option<String>,
+) -> Result<()> {
+    state.dependencies.set_manual_path(id, path).await
+}
+
 #[tauri::command]
 pub async fn start_hosting(state: State<'_, AppState>) -> Result<HostingInfo> {
     state.session.start_hosting().await

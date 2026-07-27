@@ -61,6 +61,17 @@ export const ipc = {
   installDependency: (id: DependencyId) =>
     invoke<void>("install_dependency", { id }),
 
+  /**
+   * Points a dependency at a program the user chose, for portable builds
+   * automatic detection cannot see. `path` may be the executable or the
+   * folder holding it; `null` clears the choice.
+   *
+   * Rejects when the program is not actually there, leaving the previous
+   * setting untouched.
+   */
+  setDependencyPath: (id: DependencyId, path: string | null) =>
+    invoke<void>("set_dependency_path", { id, path }),
+
   startHosting: () => invoke<HostingInfo>("start_hosting"),
   stopHosting: () => invoke<void>("stop_hosting"),
   sessionState: () => invoke<SessionState>("session_state"),

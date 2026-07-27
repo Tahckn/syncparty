@@ -106,6 +106,22 @@ pub trait Dependency: Send + Sync {
 
     /// Whether an automatic install is possible on this machine right now.
     async fn can_auto_install(&self) -> bool;
+
+    /// Whether the user can point syncparty at this program by hand.
+    ///
+    /// True for anything with a portable distribution — an extracted zip is
+    /// invisible to both `PATH` and the registry. False for Tailscale, which
+    /// installs a system service at a fixed location, and for the managed
+    /// server runtime, which syncparty puts where it likes.
+    fn supports_manual_path(&self) -> bool {
+        false
+    }
+
+    /// The settings key its manual path is stored under. Only meaningful when
+    /// [`Dependency::supports_manual_path`] is true.
+    fn manual_path_key(&self) -> Option<&'static str> {
+        None
+    }
 }
 
 /// Snapshot of every dependency relevant to the chosen mode.
@@ -127,6 +143,10 @@ pub struct PreflightItem {
     pub can_auto_install: bool,
     pub needs_elevation: bool,
     pub manual_url: String,
+    /// Whether the UI should offer a "locate it for me" button.
+    pub supports_manual_path: bool,
+    /// The path the user already chose, so the UI can show and clear it.
+    pub override_path: Option<String>,
 }
 
 impl PreflightReport {
@@ -160,6 +180,8 @@ mod tests {
             can_auto_install: true,
             needs_elevation: false,
             manual_url: "https://example.com".to_owned(),
+            supports_manual_path: false,
+            override_path: None,
         }
     }
 

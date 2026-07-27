@@ -106,6 +106,41 @@ pub fn locate(binary: &str, fallbacks: &[&str]) -> Option<std::path::PathBuf> {
         .map(Path::to_path_buf)
 }
 
+/// Turns a path the user picked into an executable.
+///
+/// Accepts either the program itself or a directory containing it. Portable
+/// builds arrive as an extracted folder, and "where is mpv?" is a question
+/// people answer with a folder — so both are treated as valid answers.
+pub fn resolve_manual(raw: &str, binary: &str) -> Option<std::path::PathBuf> {
+    let candidate = Path::new(raw.trim());
+
+    if candidate.is_file() {
+        return Some(candidate.to_path_buf());
+    }
+
+    if candidate.is_dir() {
+        let executable = if cfg!(windows) {
+            format!("{binary}.exe")
+        } else {
+            binary.to_owned()
+        };
+
+        // macOS application bundles keep the binary several levels down.
+        for relative in [
+            executable.as_str(),
+            &format!("bin/{executable}"),
+            &format!("Contents/MacOS/{binary}"),
+        ] {
+            let inside = candidate.join(relative);
+            if inside.is_file() {
+                return Some(inside);
+            }
+        }
+    }
+
+    None
+}
+
 /// Asks a program for its version, returning `None` if it will not say.
 ///
 /// Only ever used to decorate a "found it" message, so every failure mode —
@@ -149,5 +184,89 @@ mod tests {
     #[test]
     fn locate_returns_none_when_nothing_matches() {
         assert!(locate("syncparty-does-not-exist", &["/nope/also-not-here"]).is_none());
+    }
+
+    fn scratch(label: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("syncparty-manual-{label}"));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        dir
+    }
+
+    fn touch(path: &Path) {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).expect("parent");
+        }
+        std::fs::write(path, b"").expect("touch");
+    }
+
+    fn binary_name(stem: &str) -> String {
+        if cfg!(windows) {
+            format!("{stem}.exe")
+        } else {
+            stem.to_owned()
+        }
+    }
+
+    #[test]
+    fn accepts_the_executable_itself() {
+        let dir = scratch("file");
+        let executable = dir.join(binary_name("mpv"));
+        touch(&executable);
+
+        assert_eq!(
+            resolve_manual(executable.to_str().expect("utf8"), "mpv"),
+            Some(executable)
+        );
+    }
+
+    #[test]
+    fn accepts_the_folder_a_portable_build_was_extracted_into() {
+        let dir = scratch("folder");
+        let executable = dir.join(binary_name("mpv"));
+        touch(&executable);
+
+        assert_eq!(
+            resolve_manual(dir.to_str().expect("utf8"), "mpv"),
+            Some(executable)
+        );
+    }
+
+    #[test]
+    fn looks_inside_bin_and_macos_bundles() {
+        let bin_dir = scratch("bin");
+        let in_bin = bin_dir.join("bin").join(binary_name("mpv"));
+        touch(&in_bin);
+        assert_eq!(
+            resolve_manual(bin_dir.to_str().expect("utf8"), "mpv"),
+            Some(in_bin)
+        );
+
+        let bundle = scratch("bundle");
+        let in_bundle = bundle.join("Contents").join("MacOS").join("mpv");
+        touch(&in_bundle);
+        assert_eq!(
+            resolve_manual(bundle.to_str().expect("utf8"), "mpv"),
+            Some(in_bundle)
+        );
+    }
+
+    #[test]
+    fn tolerates_surrounding_whitespace_from_a_pasted_path() {
+        let dir = scratch("padded");
+        let executable = dir.join(binary_name("mpv"));
+        touch(&executable);
+
+        let padded = format!("  {}  ", dir.to_str().expect("utf8"));
+        assert_eq!(resolve_manual(&padded, "mpv"), Some(executable));
+    }
+
+    #[test]
+    fn rejects_a_folder_without_the_program_in_it() {
+        let dir = scratch("empty");
+
+        assert!(resolve_manual(dir.to_str().expect("utf8"), "mpv").is_none());
+        assert!(resolve_manual("", "mpv").is_none());
+        assert!(resolve_manual("/definitely/not/here", "mpv").is_none());
     }
 }

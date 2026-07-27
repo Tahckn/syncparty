@@ -60,6 +60,11 @@ All traffic rides the existing WireGuard tunnel.
 
 A few decisions worth knowing about:
 
+- **Portable builds can be pointed at by hand.** Detection covers installers
+  and `PATH`, which misses an mpv or Syncplay zip extracted to some folder.
+  Rather than guessing at where people keep those, the setup screen has a
+  "Locate…" button — give it the program or the folder holding it. A location
+  that turns out not to work is rejected rather than saved.
 - **The room panel attaches a real Syncplay client.** The server has no admin
   API, so the only way to learn nicknames and open files is to be a
   participant. It appears in everyone's user list as `syncparty-panel`, and can

@@ -3,6 +3,7 @@
 //! Nothing secret lives here — passwords, salts and webhook URLs go through
 //! [`crate::core::config::SecretStore`] into the OS keychain instead.
 
+use std::collections::BTreeMap;
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
@@ -42,6 +43,12 @@ pub struct AppSettings {
     /// Disabling it trades the rich panel for one fewer name in the user list.
     pub monitor_enabled: bool,
     pub discord_enabled: bool,
+    /// Programs the user pointed at by hand, keyed by dependency.
+    ///
+    /// Automatic detection covers installers and `PATH`, which misses
+    /// portable builds — an mpv zip extracted to some folder is invisible to
+    /// both. Rather than guess at where people keep those, this lets them say.
+    pub executable_overrides: BTreeMap<String, String>,
 }
 
 impl Default for AppSettings {
@@ -54,6 +61,7 @@ impl Default for AppSettings {
             language: "en".to_owned(),
             monitor_enabled: true,
             discord_enabled: false,
+            executable_overrides: BTreeMap::new(),
         }
     }
 }
@@ -94,6 +102,30 @@ impl ConfigStore {
 
     pub fn get(&self) -> AppSettings {
         self.cached.lock().expect("settings mutex poisoned").clone()
+    }
+
+    /// The path the user set for `key`, if any.
+    pub fn executable_override(&self, key: &str) -> Option<String> {
+        self.cached
+            .lock()
+            .expect("settings mutex poisoned")
+            .executable_overrides
+            .get(key)
+            .cloned()
+    }
+
+    /// Records or clears a manually chosen program location.
+    pub fn set_executable_override(&self, key: &str, path: Option<String>) -> Result<()> {
+        self.update(|settings| match path {
+            Some(path) => {
+                settings.executable_overrides.insert(key.to_owned(), path);
+            }
+            None => {
+                settings.executable_overrides.remove(key);
+            }
+        })?;
+
+        Ok(())
     }
 
     /// Applies `mutate` to the settings and persists the result.
@@ -158,6 +190,46 @@ mod tests {
         let reloaded = ConfigStore::load(paths).expect("reload");
         assert_eq!(reloaded.get().mode, Some(AppMode::Host));
         assert_eq!(reloaded.get().port, 9100);
+    }
+
+    #[test]
+    fn executable_overrides_round_trip_and_can_be_removed() {
+        let paths = temp_paths("overrides");
+        let store = ConfigStore::load(paths.clone()).expect("load");
+
+        assert_eq!(store.executable_override("mpv"), None);
+
+        store
+            .set_executable_override("mpv", Some("C:/portable/mpv.exe".to_owned()))
+            .expect("set");
+        assert_eq!(
+            ConfigStore::load(paths.clone())
+                .expect("reload")
+                .executable_override("mpv"),
+            Some("C:/portable/mpv.exe".to_owned()),
+            "the override has to survive a restart"
+        );
+
+        store.set_executable_override("mpv", None).expect("clear");
+        assert_eq!(
+            ConfigStore::load(paths)
+                .expect("reload")
+                .executable_override("mpv"),
+            None
+        );
+    }
+
+    #[test]
+    fn settings_written_before_overrides_existed_still_load() {
+        let paths = temp_paths("legacy");
+        std::fs::write(
+            paths.settings_file(),
+            br#"{"mode":"host","port":8999,"room":"MovieNight","nickname":"a","language":"en","monitorEnabled":true,"discordEnabled":false}"#,
+        )
+        .expect("seed");
+
+        let store = ConfigStore::load(paths).expect("load");
+        assert!(store.get().executable_overrides.is_empty());
     }
 
     #[test]

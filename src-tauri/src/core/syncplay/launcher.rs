@@ -6,6 +6,7 @@
 
 use std::path::PathBuf;
 
+use crate::core::config::ConfigStore;
 use crate::core::error::{Result, SyncPartyError};
 use crate::core::invite::Invite;
 use crate::core::process;
@@ -38,14 +39,25 @@ const MPV_FALLBACKS: &[&str] = &[
 #[cfg(not(any(windows, target_os = "macos")))]
 const MPV_FALLBACKS: &[&str] = &["/usr/bin/mpv", "/usr/local/bin/mpv"];
 
+/// Settings keys under which a manually chosen path is stored.
+pub const SYNCPLAY_CLIENT_KEY: &str = "syncplayClient";
+pub const MPV_KEY: &str = "mpv";
+
 /// Locates the Syncplay client executable.
-pub fn find_client() -> Option<PathBuf> {
-    process::locate("syncplay", CLIENT_FALLBACKS)
+///
+/// A path the user set by hand wins over everything else — they told us where
+/// it is, so second-guessing them would be strange.
+pub fn find_client(manual: Option<&str>) -> Option<PathBuf> {
+    manual
+        .and_then(|raw| process::resolve_manual(raw, "syncplay"))
+        .or_else(|| process::locate("syncplay", CLIENT_FALLBACKS))
 }
 
 /// Locates mpv, the player Syncplay drives.
-pub fn find_mpv() -> Option<PathBuf> {
-    process::locate("mpv", MPV_FALLBACKS)
+pub fn find_mpv(manual: Option<&str>) -> Option<PathBuf> {
+    manual
+        .and_then(|raw| process::resolve_manual(raw, "mpv"))
+        .or_else(|| process::locate("mpv", MPV_FALLBACKS))
 }
 
 pub struct ClientLauncher {
@@ -54,11 +66,18 @@ pub struct ClientLauncher {
 }
 
 impl ClientLauncher {
-    pub fn discover() -> Result<Self> {
+    /// Resolves both programs, honouring whatever the user pointed at.
+    ///
+    /// Reads the same overrides the preflight check does, so a dependency
+    /// reported as ready is one this can actually launch.
+    pub fn discover(settings: &ConfigStore) -> Result<Self> {
+        let client_override = settings.executable_override(SYNCPLAY_CLIENT_KEY);
+        let mpv_override = settings.executable_override(MPV_KEY);
+
         Ok(Self {
-            client: find_client()
+            client: find_client(client_override.as_deref())
                 .ok_or_else(|| SyncPartyError::DependencyMissing("Syncplay".to_owned()))?,
-            player: find_mpv(),
+            player: find_mpv(mpv_override.as_deref()),
         })
     }
 

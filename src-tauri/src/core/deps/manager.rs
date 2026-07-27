@@ -1,7 +1,9 @@
 //! The registry that turns individual [`Dependency`] implementations into a
 //! single preflight check.
 
-use crate::core::config::AppMode;
+use std::sync::Arc;
+
+use crate::core::config::{AppMode, ConfigStore};
 use crate::core::deps::{
     Dependency, DependencyId, MpvDependency, PreflightItem, PreflightReport,
     ServerRuntimeDependency, SyncplayClientDependency, TailscaleDependency,
@@ -12,21 +14,28 @@ use crate::core::paths::AppPaths;
 
 pub struct DependencyManager {
     dependencies: Vec<Box<dyn Dependency>>,
+    settings: Arc<ConfigStore>,
 }
 
 impl DependencyManager {
     /// The set syncparty ships with.
-    pub fn standard(paths: AppPaths) -> Self {
-        Self::with(vec![
-            Box::new(TailscaleDependency::new()),
-            Box::new(SyncplayClientDependency::new()),
-            Box::new(MpvDependency::new()),
-            Box::new(ServerRuntimeDependency::new(paths)),
-        ])
+    pub fn standard(paths: AppPaths, settings: Arc<ConfigStore>) -> Self {
+        Self::with(
+            vec![
+                Box::new(TailscaleDependency::new()) as Box<dyn Dependency>,
+                Box::new(SyncplayClientDependency::new(Arc::clone(&settings))),
+                Box::new(MpvDependency::new(Arc::clone(&settings))),
+                Box::new(ServerRuntimeDependency::new(paths)),
+            ],
+            settings,
+        )
     }
 
-    pub fn with(dependencies: Vec<Box<dyn Dependency>>) -> Self {
-        Self { dependencies }
+    pub fn with(dependencies: Vec<Box<dyn Dependency>>, settings: Arc<ConfigStore>) -> Self {
+        Self {
+            dependencies,
+            settings,
+        }
     }
 
     fn find(&self, id: DependencyId) -> Option<&dyn Dependency> {
@@ -55,11 +64,48 @@ impl DependencyManager {
                 can_auto_install: dependency.can_auto_install().await,
                 needs_elevation: dependency.needs_elevation(),
                 manual_url: dependency.manual_url().to_owned(),
+                supports_manual_path: dependency.supports_manual_path(),
+                override_path: dependency
+                    .manual_path_key()
+                    .and_then(|key| self.settings.executable_override(key)),
             }
         }))
         .await;
 
         PreflightReport { mode, items }
+    }
+
+    /// Points a dependency at a program the user chose, or clears that choice.
+    ///
+    /// The new path is verified by re-detecting, and a path that does not
+    /// actually yield a working program is rolled back rather than saved.
+    /// Otherwise a typo would leave the dependency permanently broken with no
+    /// obvious way back.
+    pub async fn set_manual_path(&self, id: DependencyId, path: Option<String>) -> Result<()> {
+        let dependency = self
+            .find(id)
+            .ok_or_else(|| SyncPartyError::Other(format!("unknown dependency: {id:?}")))?;
+
+        let key = dependency.manual_path_key().ok_or_else(|| {
+            SyncPartyError::Other(format!(
+                "{} cannot be located by hand",
+                dependency.display_name()
+            ))
+        })?;
+
+        let previous = self.settings.executable_override(key);
+        self.settings.set_executable_override(key, path.clone())?;
+
+        if path.is_none() || dependency.detect().await.is_installed() {
+            return Ok(());
+        }
+
+        self.settings.set_executable_override(key, previous)?;
+
+        Err(SyncPartyError::DependencyMissing(format!(
+            "{} was not found at that location",
+            dependency.display_name()
+        )))
     }
 
     /// Installs one dependency, streaming progress onto the event bus.
@@ -90,6 +136,7 @@ mod tests {
         id: DependencyId,
         requirement: ModeRequirement,
         status: DependencyStatus,
+        manual_key: Option<&'static str>,
     }
 
     impl FakeDependency {
@@ -101,6 +148,7 @@ mod tests {
                     version: None,
                     path: None,
                 },
+                manual_key: None,
             }
         }
 
@@ -109,6 +157,7 @@ mod tests {
                 id,
                 requirement,
                 status: DependencyStatus::Missing,
+                manual_key: None,
             }
         }
     }
@@ -147,19 +196,41 @@ mod tests {
         async fn can_auto_install(&self) -> bool {
             true
         }
+
+        fn supports_manual_path(&self) -> bool {
+            self.manual_key.is_some()
+        }
+
+        fn manual_path_key(&self) -> Option<&'static str> {
+            self.manual_key
+        }
+    }
+
+    fn settings(label: &str) -> Arc<ConfigStore> {
+        let dir = std::env::temp_dir().join(format!("syncparty-manager-{label}"));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        Arc::new(ConfigStore::load(AppPaths::rooted_at(dir)).expect("settings"))
     }
 
     fn manager() -> DependencyManager {
-        DependencyManager::with(vec![
-            Box::new(FakeDependency::installed(
-                DependencyId::Tailscale,
-                ModeRequirement::Both,
-            )),
-            Box::new(FakeDependency::missing(
-                DependencyId::ServerRuntime,
-                ModeRequirement::HostOnly,
-            )),
-        ])
+        manager_with(settings("default"))
+    }
+
+    fn manager_with(settings: Arc<ConfigStore>) -> DependencyManager {
+        DependencyManager::with(
+            vec![
+                Box::new(FakeDependency::installed(
+                    DependencyId::Tailscale,
+                    ModeRequirement::Both,
+                )) as Box<dyn Dependency>,
+                Box::new(FakeDependency::missing(
+                    DependencyId::ServerRuntime,
+                    ModeRequirement::HostOnly,
+                )),
+            ],
+            settings,
+        )
     }
 
     #[tokio::test]
@@ -202,6 +273,78 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[tokio::test]
+    async fn a_dependency_that_cannot_be_located_by_hand_refuses_a_path() {
+        let error = manager()
+            .set_manual_path(DependencyId::Tailscale, Some("/somewhere".to_owned()))
+            .await
+            .expect_err("Tailscale has a fixed install location");
+
+        assert_eq!(error.kind(), "other");
+    }
+
+    #[tokio::test]
+    async fn a_path_that_does_not_work_is_rolled_back() {
+        let settings = settings("rollback");
+        let manager = DependencyManager::with(
+            vec![Box::new(FakeDependency {
+                id: DependencyId::Mpv,
+                requirement: ModeRequirement::Both,
+                status: DependencyStatus::Missing,
+                manual_key: Some("mpv"),
+            }) as Box<dyn Dependency>],
+            Arc::clone(&settings),
+        );
+
+        let error = manager
+            .set_manual_path(DependencyId::Mpv, Some("/nowhere/mpv".to_owned()))
+            .await
+            .expect_err("detection still fails, so the path is no good");
+
+        assert_eq!(error.kind(), "dependency_missing");
+        assert_eq!(
+            settings.executable_override("mpv"),
+            None,
+            "a path that does not work must not be left behind"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_working_path_is_kept_and_reported_by_preflight() {
+        let settings = settings("accepted");
+        let manager = DependencyManager::with(
+            vec![Box::new(FakeDependency {
+                id: DependencyId::Mpv,
+                requirement: ModeRequirement::Both,
+                // Stands in for a real binary being found at the chosen path.
+                status: DependencyStatus::Installed {
+                    version: None,
+                    path: None,
+                },
+                manual_key: Some("mpv"),
+            }) as Box<dyn Dependency>],
+            Arc::clone(&settings),
+        );
+
+        manager
+            .set_manual_path(DependencyId::Mpv, Some("C:/portable/mpv.exe".to_owned()))
+            .await
+            .expect("accepted");
+
+        let report = manager.preflight(AppMode::Guest).await;
+        assert_eq!(
+            report.items[0].override_path.as_deref(),
+            Some("C:/portable/mpv.exe")
+        );
+        assert!(report.items[0].supports_manual_path);
+
+        manager
+            .set_manual_path(DependencyId::Mpv, None)
+            .await
+            .expect("cleared");
+        assert_eq!(settings.executable_override("mpv"), None);
     }
 
     #[tokio::test]

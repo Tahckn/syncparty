@@ -2,4 +2,12 @@
 import type { DependencyId } from "./DependencyId";
 import type { DependencyStatus } from "./DependencyStatus";
 
-export type PreflightItem = { id: DependencyId, displayName: string, status: DependencyStatus, canAutoInstall: boolean, needsElevation: boolean, manualUrl: string, };
+export type PreflightItem = { id: DependencyId, displayName: string, status: DependencyStatus, canAutoInstall: boolean, needsElevation: boolean, manualUrl: string, 
+/**
+ * Whether the UI should offer a "locate it for me" button.
+ */
+supportsManualPath: boolean, 
+/**
+ * The path the user already chose, so the UI can show and clear it.
+ */
+overridePath: string | null, };

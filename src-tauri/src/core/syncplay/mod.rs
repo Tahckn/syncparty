@@ -6,7 +6,7 @@ mod monitor;
 pub mod protocol;
 mod server;
 
-pub use launcher::{find_client, find_mpv, ClientLauncher};
+pub use launcher::{find_client, find_mpv, ClientLauncher, MPV_KEY, SYNCPLAY_CLIENT_KEY};
 pub use monitor::{
     MonitorConfig, RoomMonitor, RoomSnapshot, RoomView, WatchedFile, WatcherView, MONITOR_NICKNAME,
 };

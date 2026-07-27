@@ -14,4 +14,12 @@ language: string,
  * Whether the host attaches a hidden client to read live room state.
  * Disabling it trades the rich panel for one fewer name in the user list.
  */
-monitorEnabled: boolean, discordEnabled: boolean, };
+monitorEnabled: boolean, discordEnabled: boolean, 
+/**
+ * Programs the user pointed at by hand, keyed by dependency.
+ *
+ * Automatic detection covers installers and `PATH`, which misses
+ * portable builds — an mpv zip extracted to some folder is invisible to
+ * both. Rather than guess at where people keep those, this lets them say.
+ */
+executableOverrides: { [key in string]: string }, };

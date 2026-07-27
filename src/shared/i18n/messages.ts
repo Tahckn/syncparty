@@ -46,6 +46,13 @@ export const en = {
   "preflight.allReady": "Everything is ready.",
   "preflight.recheck": "Check again",
   "preflight.continue": "Continue",
+  "preflight.locate": "Locate…",
+  "preflight.locate.title": "Where is it?",
+  "preflight.locate.hint":
+    "Pick the program itself, or the folder a portable build was extracted into.",
+  "preflight.locate.failed": "That location does not contain the program.",
+  "preflight.usingPath": "Using the location you chose",
+  "preflight.clearPath": "Forget this location",
 
   "host.title": "Host",
   "host.start": "Start movie night",
@@ -167,6 +174,13 @@ export const tr: Messages = {
   "preflight.allReady": "Her şey hazır.",
   "preflight.recheck": "Tekrar kontrol et",
   "preflight.continue": "Devam",
+  "preflight.locate": "Konumunu göster…",
+  "preflight.locate.title": "Nerede?",
+  "preflight.locate.hint":
+    "Programın kendisini ya da portable sürümün çıkarıldığı klasörü seç.",
+  "preflight.locate.failed": "Bu konumda program bulunamadı.",
+  "preflight.usingPath": "Gösterdiğin konum kullanılıyor",
+  "preflight.clearPath": "Bu konumu unut",
 
   "host.title": "Sunucu",
   "host.start": "Film gecesini başlat",

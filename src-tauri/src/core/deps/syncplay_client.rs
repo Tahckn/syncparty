@@ -1,22 +1,26 @@
 //! The Syncplay desktop client as a managed dependency.
 
+use std::sync::Arc;
+
 use async_trait::async_trait;
 
+use crate::core::config::ConfigStore;
 use crate::core::deps::installer::{install_and_verify, PackageManagedInstall, PackageSpec};
 use crate::core::deps::{Dependency, DependencyId, DependencyStatus, ModeRequirement};
 use crate::core::error::Result;
 use crate::core::events::ProgressSink;
-use crate::core::syncplay::find_client;
+use crate::core::syncplay::{find_client, SYNCPLAY_CLIENT_KEY};
 
 const DISPLAY_NAME: &str = "Syncplay";
 const MANUAL_URL: &str = "https://syncplay.pl/download/";
 
 pub struct SyncplayClientDependency {
     installer: PackageManagedInstall,
+    settings: Arc<ConfigStore>,
 }
 
 impl SyncplayClientDependency {
-    pub fn new() -> Self {
+    pub fn new(settings: Arc<ConfigStore>) -> Self {
         Self {
             installer: PackageManagedInstall {
                 display_name: DISPLAY_NAME,
@@ -25,13 +29,8 @@ impl SyncplayClientDependency {
                     brew_cask: Some("syncplay"),
                 },
             },
+            settings,
         }
-    }
-}
-
-impl Default for SyncplayClientDependency {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -51,7 +50,9 @@ impl Dependency for SyncplayClientDependency {
     }
 
     async fn detect(&self) -> DependencyStatus {
-        let Some(path) = find_client() else {
+        let manual = self.settings.executable_override(SYNCPLAY_CLIENT_KEY);
+
+        let Some(path) = find_client(manual.as_deref()) else {
             return DependencyStatus::Missing;
         };
 
@@ -77,5 +78,14 @@ impl Dependency for SyncplayClientDependency {
 
     async fn can_auto_install(&self) -> bool {
         self.installer.is_supported()
+    }
+
+    /// Syncplay publishes a portable build alongside its installer.
+    fn supports_manual_path(&self) -> bool {
+        true
+    }
+
+    fn manual_path_key(&self) -> Option<&'static str> {
+        Some(SYNCPLAY_CLIENT_KEY)
     }
 }
