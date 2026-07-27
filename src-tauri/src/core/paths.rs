@@ -1,0 +1,111 @@
+//! Where syncparty keeps its data on each platform.
+//!
+//! Resolved once at startup and passed down, so no module has to guess at a
+//! directory layout or reach for an environment variable on its own.
+
+use std::path::{Path, PathBuf};
+
+use crate::core::error::{Result, SyncPartyError};
+
+const APP_DIR_NAME: &str = "syncparty";
+
+#[derive(Debug, Clone)]
+pub struct AppPaths {
+    data_dir: PathBuf,
+}
+
+impl AppPaths {
+    /// Resolves the per-user data directory, creating it if it does not exist.
+    pub fn resolve() -> Result<Self> {
+        let base = platform_data_root()?;
+        let data_dir = base.join(APP_DIR_NAME);
+        std::fs::create_dir_all(&data_dir)?;
+        Ok(Self { data_dir })
+    }
+
+    /// Points every path at `root`. Used by tests to stay off the real profile.
+    pub fn rooted_at(root: impl Into<PathBuf>) -> Self {
+        Self {
+            data_dir: root.into(),
+        }
+    }
+
+    pub fn data_dir(&self) -> &Path {
+        &self.data_dir
+    }
+
+    pub fn settings_file(&self) -> PathBuf {
+        self.data_dir.join("settings.json")
+    }
+
+    /// Root of the managed Python environment and Syncplay checkout.
+    pub fn server_runtime_dir(&self) -> PathBuf {
+        self.data_dir.join("server-runtime")
+    }
+
+    pub fn syncplay_source_dir(&self) -> PathBuf {
+        self.server_runtime_dir().join("syncplay-source")
+    }
+
+    pub fn server_venv_dir(&self) -> PathBuf {
+        self.server_runtime_dir().join("venv")
+    }
+
+    /// Python interpreter inside the managed virtual environment.
+    pub fn server_python(&self) -> PathBuf {
+        let venv = self.server_venv_dir();
+        if cfg!(windows) {
+            venv.join("Scripts").join("python.exe")
+        } else {
+            venv.join("bin").join("python")
+        }
+    }
+
+    pub fn server_entrypoint(&self) -> PathBuf {
+        self.syncplay_source_dir().join("syncplayServer.py")
+    }
+
+    pub fn log_dir(&self) -> PathBuf {
+        self.data_dir.join("logs")
+    }
+
+    pub fn server_log(&self) -> PathBuf {
+        self.log_dir().join("syncplay-server.log")
+    }
+}
+
+fn platform_data_root() -> Result<PathBuf> {
+    let missing = |var: &str| SyncPartyError::Config(format!("the {var} environment variable is not set"));
+
+    if cfg!(windows) {
+        std::env::var_os("LOCALAPPDATA")
+            .map(PathBuf::from)
+            .ok_or_else(|| missing("LOCALAPPDATA"))
+    } else {
+        let home = std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .ok_or_else(|| missing("HOME"))?;
+
+        if cfg!(target_os = "macos") {
+            Ok(home.join("Library").join("Application Support"))
+        } else {
+            Ok(std::env::var_os("XDG_DATA_HOME")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| home.join(".local").join("share")))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn derives_every_path_from_the_data_dir() {
+        let paths = AppPaths::rooted_at("/tmp/syncparty-test");
+
+        assert!(paths.settings_file().starts_with("/tmp/syncparty-test"));
+        assert!(paths.server_entrypoint().ends_with("syncplayServer.py"));
+        assert!(paths.server_python().starts_with(paths.server_venv_dir()));
+    }
+}

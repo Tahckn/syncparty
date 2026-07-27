@@ -1,0 +1,134 @@
+//! The command surface the frontend calls.
+//!
+//! Each one is a one-liner over `core`. If a handler grows a branch, that
+//! branch belongs in `core` where it can be tested.
+
+use serde::Deserialize;
+use tauri::State;
+use ts_rs::TS;
+
+use crate::core::config::{AppMode, AppSettings};
+use crate::core::deps::{DependencyId, PreflightReport};
+use crate::core::error::{Result, SyncPartyError};
+use crate::core::invite::Invite;
+use crate::core::notify;
+use crate::core::session::{HostingInfo, SessionState};
+use crate::ipc::AppState;
+
+/// A partial settings update. Absent fields are left alone, so the UI can send
+/// just the toggle the user touched.
+#[derive(Debug, Default, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase", default)]
+pub struct SettingsPatch {
+    pub mode: Option<AppMode>,
+    pub port: Option<u16>,
+    pub room: Option<String>,
+    pub nickname: Option<String>,
+    pub language: Option<String>,
+    pub monitor_enabled: Option<bool>,
+    pub discord_enabled: Option<bool>,
+}
+
+#[tauri::command]
+pub fn get_settings(state: State<'_, AppState>) -> AppSettings {
+    state.settings.get()
+}
+
+#[tauri::command]
+pub fn update_settings(state: State<'_, AppState>, patch: SettingsPatch) -> Result<AppSettings> {
+    state.settings.update(|settings| {
+        if let Some(mode) = patch.mode {
+            settings.mode = Some(mode);
+        }
+        if let Some(port) = patch.port {
+            settings.port = port;
+        }
+        if let Some(room) = patch.room {
+            settings.room = room;
+        }
+        if let Some(nickname) = patch.nickname {
+            settings.nickname = nickname;
+        }
+        if let Some(language) = patch.language {
+            settings.language = language;
+        }
+        if let Some(enabled) = patch.monitor_enabled {
+            settings.monitor_enabled = enabled;
+        }
+        if let Some(enabled) = patch.discord_enabled {
+            settings.discord_enabled = enabled;
+        }
+    })
+}
+
+#[tauri::command]
+pub async fn run_preflight(state: State<'_, AppState>, mode: AppMode) -> Result<PreflightReport> {
+    Ok(state.dependencies.preflight(mode).await)
+}
+
+/// Installs one dependency. Progress arrives as events while this runs.
+#[tauri::command]
+pub async fn install_dependency(state: State<'_, AppState>, id: DependencyId) -> Result<()> {
+    state.dependencies.install(id, state.bus.as_ref()).await
+}
+
+#[tauri::command]
+pub async fn start_hosting(state: State<'_, AppState>) -> Result<HostingInfo> {
+    state.session.start_hosting().await
+}
+
+#[tauri::command]
+pub async fn stop_hosting(state: State<'_, AppState>) -> Result<()> {
+    state.session.stop_hosting().await
+}
+
+#[tauri::command]
+pub async fn session_state(state: State<'_, AppState>) -> Result<SessionState> {
+    Ok(state.session.state().await)
+}
+
+/// Parses whatever the guest pasted — a bare code, a link, or a whole message.
+#[tauri::command]
+pub fn decode_invite(text: String) -> Result<Invite> {
+    Invite::decode(&text)
+}
+
+#[tauri::command]
+pub fn join_party(state: State<'_, AppState>, invite: Invite) -> Result<()> {
+    state.session.join(&invite)
+}
+
+#[tauri::command]
+pub fn discord_status(state: State<'_, AppState>) -> bool {
+    state.discord.is_configured()
+}
+
+#[tauri::command]
+pub fn set_discord_webhook(state: State<'_, AppState>, url: String) -> Result<()> {
+    state.discord.set_webhook(&url)
+}
+
+#[tauri::command]
+pub fn clear_discord_webhook(state: State<'_, AppState>) -> Result<()> {
+    state.discord.clear_webhook()
+}
+
+/// Posts a test message so the user can confirm the webhook lands in the right
+/// channel before relying on it mid-party.
+#[tauri::command]
+pub async fn test_discord_webhook(state: State<'_, AppState>) -> Result<()> {
+    let language = state.settings.get().language;
+
+    if state
+        .discord
+        .send(&notify::webhook_test(&language))
+        .await?
+    {
+        Ok(())
+    } else {
+        Err(SyncPartyError::Config(
+            "no Discord webhook has been set".to_owned(),
+        ))
+    }
+}

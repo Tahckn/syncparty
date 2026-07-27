@@ -1,0 +1,67 @@
+[package]
+name = "syncparty"
+version = "0.1.0"
+description = "Synchronised movie nights over Tailscale"
+authors = ["Taha Çeken"]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/Tahckn/syncparty"
+
+[lib]
+# The `_lib` suffix keeps the library name distinct from the binary name,
+# which would otherwise collide on Windows.
+name = "syncparty_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-store = "2"
+tauri-plugin-deep-link = "2"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = [
+    "rt-multi-thread",
+    "macros",
+    "net",
+    "io-util",
+    "sync",
+    "time",
+    "process",
+    "fs",
+] }
+async-trait = "0.1"
+futures = "0.3"
+thiserror = "2"
+# Pinned to 3.x: keyring 4 moved to a different backend API, and 3.x is the
+# line with the stable Entry interface used in core::config::secrets.
+keyring = { version = "3", features = ["apple-native", "windows-native"] }
+base64 = "0.23"
+md-5 = "0.10"
+# rustls rather than the platform TLS stack, so the same certificate
+# behaviour ships on Windows and macOS.
+reqwest = { version = "0.13", default-features = false, features = [
+    "charset",
+    "http2",
+    "json",
+    "rustls",
+    "webpki-roots",
+] }
+ts-rs = "12"
+which = "8"
+getrandom = "0.4"
+flate2 = "1"
+tar = "0.4"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+url = "2"
+
+[target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))".dependencies]
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
