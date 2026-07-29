@@ -3,12 +3,50 @@ name: Release
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch:
+
+# A tag is the single source of truth for a release. Re-running a failed job is
+# still available in GitHub Actions, while a manual dispatch from `main` could
+# accidentally try to publish a release named `main`.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
+  validate:
+    name: Validate release metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Fail before reserving three native runners when the tag or one of the
+      # three version declarations was forgotten during the release bump.
+      - name: Check tag and application versions
+        shell: bash
+        run: |
+          package_version="$(node -p "require('./package.json').version")"
+          tauri_version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          cargo_version="$(sed -n '/^\[package\]/,/^\[/s/^version = "\(.*\)"/\1/p' src-tauri/Cargo.toml | head -n 1)"
+
+          if [[ "$package_version" != "$tauri_version" || "$package_version" != "$cargo_version" ]]; then
+            echo "::error::Version mismatch: package.json=$package_version, tauri.conf.json=$tauri_version, Cargo.toml=$cargo_version"
+            exit 1
+          fi
+
+          if [[ "$GITHUB_REF_NAME" != "v$package_version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match application version v$package_version"
+            exit 1
+          fi
+
   build:
     name: ${{ matrix.label }}
+    needs: validate
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     permissions:
       contents: write
 
@@ -55,7 +93,8 @@ jobs:
       # before installing it. Losing that key would only break auto-update,
       # not the ability to cut releases — a new one can be generated and its
       # public half swapped into tauri.conf.json.
-      - uses: tauri-apps/tauri-action@v0
+      # v1 runs on Node.js 24 and is the maintained Tauri v2 release action.
+      - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -64,12 +103,13 @@ jobs:
           args: --target ${{ matrix.target }}
           tagName: ${{ github.ref_name }}
           releaseName: syncparty ${{ github.ref_name }}
-          # Published rather than drafted so the download links work the moment
-          # the tag is pushed — this is how guests are meant to get the app.
-          releaseDraft: false
+          # Keep the release private until every platform has uploaded its
+          # installer and updater signature. The publish job below makes it
+          # visible atomically after the whole matrix succeeds.
+          releaseDraft: true
           # Aggregates every platform's signed artifacts into the latest.json
           # manifest the updater endpoint in tauri.conf.json points at.
-          includeUpdaterJson: true
+          uploadUpdaterJson: true
           releaseBody: |
             ## Install
 
@@ -88,3 +128,17 @@ jobs:
             These builds are unsigned. Windows SmartScreen will say "unknown
             publisher": choose **More info → Run anyway**. macOS Gatekeeper
             will refuse the first launch: **right-click the app → Open**.
+
+  publish:
+    name: Publish complete release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: write
+
+    steps:
+      - name: Publish draft after every platform succeeds
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest
