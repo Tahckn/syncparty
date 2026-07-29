@@ -17,11 +17,11 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    "bg-accent text-accent-ink hover:bg-accent-strong disabled:hover:bg-accent",
+    "bg-accent text-accent-ink shadow-[0_8px_24px_oklch(0.65_0.18_42/0.2)] hover:bg-accent-strong hover:-translate-y-px disabled:hover:translate-y-0 disabled:hover:bg-accent",
   secondary:
-    "bg-surface-raised text-ink border border-line hover:border-ink-faint",
-  ghost: "text-ink-muted hover:text-ink hover:bg-surface-raised",
-  danger: "bg-surface-raised text-bad border border-line hover:border-bad",
+    "bg-surface-raised/80 text-ink border border-line/80 shadow-sm hover:border-ink-faint hover:bg-surface-raised",
+  ghost: "text-ink-muted hover:text-ink hover:bg-surface-raised/70",
+  danger: "bg-bad/10 text-bad border border-bad/25 hover:border-bad/60 hover:bg-bad/15",
 };
 
 export function Button({
@@ -33,8 +33,8 @@ export function Button({
     <button
       {...props}
       className={cx(
-        "inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2",
-        "text-sm font-medium transition-colors",
+        "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 py-2",
+        "text-sm font-semibold transition-all duration-200",
         "disabled:cursor-not-allowed disabled:opacity-45",
         BUTTON_VARIANTS[variant],
         className,
@@ -59,20 +59,48 @@ export function Card({
   return (
     <section
       className={cx(
-        "rounded-panel border border-line bg-surface",
+        "overflow-hidden rounded-panel border border-line/70 bg-surface/78 shadow-[0_20px_60px_oklch(0.08_0.03_275/0.28)] backdrop-blur-xl",
         className,
       )}
     >
       {(title || action) && (
-        <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
-          <h2 className="text-sm font-semibold tracking-wide text-ink-muted uppercase">
+        <header className="flex items-center justify-between gap-3 border-b border-line/60 bg-surface-raised/25 px-5 py-4">
+          <h2 className="text-xs font-bold tracking-[0.14em] text-ink-muted uppercase">
             {title}
           </h2>
           {action}
         </header>
       )}
-      <div className="p-4">{children}</div>
+      <div className="p-5">{children}</div>
     </section>
+  );
+}
+
+// ------------------------------------------------------------- Page heading
+
+export function PageHeader({
+  title,
+  description,
+  action,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <header className="flex items-start justify-between gap-5">
+      <div className="min-w-0">
+        <h1 className="text-3xl font-bold tracking-[-0.035em] text-ink">
+          {title}
+        </h1>
+        {description && (
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-muted">
+            {description}
+          </p>
+        )}
+      </div>
+      {action && <div className="shrink-0 pt-1">{action}</div>}
+    </header>
   );
 }
 
@@ -98,8 +126,8 @@ export function Badge({
   return (
     <span
       className={cx(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1",
-        "text-xs font-medium whitespace-nowrap",
+        "inline-flex items-center gap-1.5 rounded-full border border-current/10 px-2.5 py-1",
+        "text-[11px] font-bold tracking-wide whitespace-nowrap",
         BADGE_TONES[tone],
       )}
     >
@@ -131,10 +159,10 @@ export function Input({
     <input
       {...props}
       className={cx(
-        "w-full rounded-lg border border-line bg-canvas px-3 py-2",
+        "w-full rounded-xl border border-line/80 bg-canvas/70 px-3.5 py-2.5",
         "text-sm text-ink placeholder:text-ink-faint",
         "cursor-text select-text",
-        "focus:border-accent focus:outline-none",
+        "transition-colors focus:border-accent focus:bg-canvas focus:outline-none",
         className,
       )}
     />
@@ -185,13 +213,13 @@ export function Toggle({
         aria-label={label}
         onClick={() => onChange(!checked)}
         className={cx(
-          "relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors",
+          "relative mt-0.5 h-7 w-12 shrink-0 rounded-full transition-colors",
           checked ? "bg-accent" : "bg-surface-raised border border-line",
         )}
       >
         <span
           className={cx(
-            "absolute top-1 size-4 rounded-full transition-all",
+            "absolute top-1 size-5 rounded-full shadow-sm transition-all",
             checked ? "left-6 bg-accent-ink" : "left-1 bg-ink-faint",
           )}
         />
@@ -224,7 +252,7 @@ export function CopyRow({
         {label}
       </p>
       <div className="flex items-center gap-2">
-        <code className="selectable min-w-0 flex-1 truncate rounded-lg border border-line bg-canvas px-3 py-2 font-mono text-xs text-ink">
+        <code className="selectable min-w-0 flex-1 truncate rounded-xl border border-line/70 bg-canvas/65 px-3.5 py-2.5 font-mono text-xs text-ink">
           {value}
         </code>
         <Button onClick={onCopy} className="shrink-0">

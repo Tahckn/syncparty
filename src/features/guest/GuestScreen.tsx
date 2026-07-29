@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAppState } from "@/app/AppState";
 import { useTranslate } from "@/shared/i18n";
 import { errorMessage, ipc } from "@/shared/ipc";
-import { Badge, Button, Card, Field, Input } from "@/shared/ui";
+import { Badge, Button, Card, Field, Input, PageHeader } from "@/shared/ui";
 import type { Invite } from "@/shared/types/Invite";
 
 /**
@@ -26,6 +26,7 @@ export function GuestScreen() {
   // A link that arrived while the app was open takes over the screen.
   useEffect(() => {
     if (!pendingInvite) return;
+    attemptedResume.current = true;
 
     setInvite(pendingInvite);
     setFromLink(true);
@@ -83,11 +84,11 @@ export function GuestScreen() {
   }
 
   return (
-    <div className="mx-auto max-w-xl space-y-4 px-6 py-8">
-      <header className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold text-ink">{t("guest.title")}</h1>
-        {fromLink && <Badge tone="accent">{t("guest.received")}</Badge>}
-      </header>
+    <div className="mx-auto max-w-2xl space-y-6 px-8 py-10">
+      <PageHeader
+        title={t("guest.title")}
+        action={fromLink ? <Badge tone="accent">{t("guest.received")}</Badge> : null}
+      />
 
       {invite ? (
         <Card title={t("guest.invite.title")}>

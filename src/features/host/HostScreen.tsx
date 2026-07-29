@@ -55,13 +55,13 @@ export function HostScreen() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 px-6 py-6">
+    <div className="mx-auto max-w-4xl space-y-5 px-8 py-8">
       <Card>
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <Dot tone={hosting ? "good" : starting ? "warn" : "neutral"} />
-              <h1 className="text-base font-semibold text-ink">
+              <h1 className="text-lg font-bold tracking-tight text-ink">
                 {t("host.title")}
               </h1>
               {hosting && <Badge tone="good">{t("host.live")}</Badge>}

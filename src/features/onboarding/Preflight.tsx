@@ -5,7 +5,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useAppState } from "@/app/AppState";
 import { useTranslate, type Translate } from "@/shared/i18n";
 import { errorMessage, ipc } from "@/shared/ipc";
-import { Badge, Button, Card, Dot } from "@/shared/ui";
+import { Badge, Button, Card, Dot, PageHeader } from "@/shared/ui";
 import type { AppMode } from "@/shared/types/AppMode";
 import type { DependencyId } from "@/shared/types/DependencyId";
 import type { PreflightItem } from "@/shared/types/PreflightItem";
@@ -101,11 +101,8 @@ export function Preflight({
     report !== null && report.items.every((item) => item.status.state !== "missing");
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 px-6 py-8">
-      <header>
-        <h1 className="text-xl font-semibold text-ink">{t("preflight.title")}</h1>
-        <p className="mt-1 text-sm text-ink-muted">{t("preflight.subtitle")}</p>
-      </header>
+    <div className="mx-auto max-w-3xl space-y-6 px-8 py-10">
+      <PageHeader title={t("preflight.title")} description={t("preflight.subtitle")} />
 
       <Card>
         {checking && !report ? (

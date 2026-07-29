@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useAppState } from "@/app/AppState";
 import { useTranslate } from "@/shared/i18n";
 import { errorMessage, ipc } from "@/shared/ipc";
-import { Button, Card, Field, Input, Toggle } from "@/shared/ui";
+import { Button, Card, Field, Input, PageHeader, Toggle } from "@/shared/ui";
 import type { AppMode } from "@/shared/types/AppMode";
 
 export function SettingsScreen() {
@@ -15,8 +15,8 @@ export function SettingsScreen() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 px-6 py-6">
-      <h1 className="text-xl font-semibold text-ink">{t("settings.title")}</h1>
+    <div className="mx-auto max-w-3xl space-y-5 px-8 py-8">
+      <PageHeader title={t("settings.title")} />
 
       <Card title={t("settings.general")}>
         <div className="space-y-4">
@@ -221,7 +221,7 @@ function Choice({
   return (
     <div className="space-y-1.5">
       <span className="text-sm font-medium text-ink">{label}</span>
-      <div className="flex gap-1 rounded-lg border border-line bg-canvas p-1">
+      <div className="flex gap-1 rounded-xl border border-line/80 bg-canvas/70 p-1.5">
         {options.map((option) => (
           <button
             key={option.value}
@@ -229,8 +229,8 @@ function Choice({
             onClick={() => onChange(option.value)}
             className={
               option.value === value
-                ? "flex-1 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink"
-                : "flex-1 rounded-md px-3 py-1.5 text-sm text-ink-muted hover:text-ink"
+                ? "flex-1 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink shadow-sm"
+                : "flex-1 rounded-lg px-3 py-2 text-sm text-ink-muted transition-colors hover:bg-surface-raised/50 hover:text-ink"
             }
           >
             {option.label}

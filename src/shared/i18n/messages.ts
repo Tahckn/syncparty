@@ -23,6 +23,7 @@ export const en = {
   "mode.guest": "Guest",
 
   "onboarding.title": "What are you doing tonight?",
+  "onboarding.eyebrow": "Watch together, privately",
   "onboarding.subtitle":
     "You can change this later. Nothing is streamed — everyone plays their own copy of the file.",
   "onboarding.host.title": "I'm hosting",
@@ -165,6 +166,7 @@ export const tr: Messages = {
   "mode.guest": "Misafir",
 
   "onboarding.title": "Bu akşam ne yapıyorsun?",
+  "onboarding.eyebrow": "Birlikte, sadece size özel",
   "onboarding.subtitle":
     "Bunu sonra değiştirebilirsin. Hiçbir şey yayınlanmaz — herkes kendi dosyasını oynatır.",
   "onboarding.host.title": "Ben kuruyorum",
