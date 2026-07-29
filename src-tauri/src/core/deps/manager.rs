@@ -125,6 +125,8 @@ impl DependencyManager {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
     use async_trait::async_trait;
 
     use super::*;
@@ -206,9 +208,17 @@ mod tests {
         }
     }
 
+    static NEXT_TEST_DIR: AtomicU64 = AtomicU64::new(0);
+
     fn settings(label: &str) -> Arc<ConfigStore> {
-        let dir = std::env::temp_dir().join(format!("syncparty-manager-{label}"));
-        let _ = std::fs::remove_dir_all(&dir);
+        // Rust tests in this module run in parallel. A shared directory made
+        // one test delete another test's open settings file, which Windows
+        // correctly rejects with AccessDenied.
+        let id = NEXT_TEST_DIR.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!(
+            "syncparty-manager-{label}-{}-{id}",
+            std::process::id()
+        ));
         std::fs::create_dir_all(&dir).expect("temp dir");
         Arc::new(ConfigStore::load(AppPaths::rooted_at(dir)).expect("settings"))
     }

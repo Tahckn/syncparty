@@ -296,12 +296,14 @@ async fn session(config: &MonitorConfig, snapshot: &watch::Sender<RoomSnapshot>)
 
             ServerMessage::State {
                 latency_calculation,
+                server_ignoring_on_the_fly,
             } => {
                 send(
                     &mut write_half,
                     &ClientMessage::PingReply {
                         latency_calculation,
                         client_latency_calculation: unix_seconds(),
+                        server_ignoring_on_the_fly,
                     },
                 )
                 .await?;
