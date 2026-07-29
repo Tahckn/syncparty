@@ -56,8 +56,21 @@ jobs:
           args: --target ${{ matrix.target }}
           tagName: ${{ github.ref_name }}
           releaseName: syncparty ${{ github.ref_name }}
-          releaseDraft: true
+          # Published rather than drafted so the download links work the moment
+          # the tag is pushed — this is how guests are meant to get the app.
+          releaseDraft: false
           releaseBody: |
-            Download the build for your platform below.
+            ## Install
 
-            These are unsigned, so your OS will warn on first launch.
+            **Windows** — the `.exe` setup file below (or the `.msi`)
+            **macOS** — `aarch64.dmg` for Apple silicon, `x64.dmg` for Intel
+
+            Everything syncparty needs — Tailscale, the Syncplay client, mpv,
+            and the Python environment for hosting — is checked on first launch
+            and installed for you if it is missing.
+
+            ## Before you open it
+
+            These builds are unsigned. Windows SmartScreen will say "unknown
+            publisher": choose **More info → Run anyway**. macOS Gatekeeper
+            will refuse the first launch: **right-click the app → Open**.
