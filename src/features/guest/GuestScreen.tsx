@@ -33,6 +33,24 @@ export function GuestScreen() {
     clearPendingInvite();
   }, [pendingInvite, clearPendingInvite]);
 
+  useEffect(() => {
+    if (pendingInvite) return;
+
+    let cancelled = false;
+    void ipc.resumeLastSession()
+      .then((saved) => {
+        if (!cancelled && saved) {
+          setInvite(saved);
+          setJoined(true);
+        }
+      })
+      .catch(reportFailure);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingInvite, reportFailure]);
+
   async function decode() {
     setParseError(null);
     try {
@@ -55,6 +73,7 @@ export function GuestScreen() {
   }
 
   function reset() {
+    void ipc.clearLastSession().catch(reportFailure);
     setInvite(null);
     setJoined(false);
     setText("");

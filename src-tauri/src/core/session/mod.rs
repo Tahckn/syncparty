@@ -277,8 +277,35 @@ impl PartySession {
     /// Opens the Syncplay client on an invite. Used by the guest half.
     pub fn join(&self, invite: &Invite) -> Result<()> {
         let nickname = self.settings.get().nickname;
-        ClientLauncher::discover(&self.settings)?.join(invite, &nickname)
+        ClientLauncher::discover(&self.settings)?.join(invite, &nickname)?;
+        self.secrets
+            .set(SecretKey::LastInvite, &serde_json::to_string(invite)?)
     }
+
+    /// Reopens the last successfully launched guest session after an app restart.
+    pub fn resume_last_session(&self) -> Result<Option<Invite>> {
+        let Some(raw) = self.secrets.get(SecretKey::LastInvite)? else {
+            return Ok(None);
+        };
+
+        let invite = match parse_last_invite(&raw) {
+            Some(invite) => invite,
+            None => {
+                self.secrets.delete(SecretKey::LastInvite)?;
+                return Ok(None);
+            }
+        };
+        self.join(&invite)?;
+        Ok(Some(invite))
+    }
+
+    pub fn clear_last_session(&self) -> Result<()> {
+        self.secrets.delete(SecretKey::LastInvite)
+    }
+}
+
+fn parse_last_invite(raw: &str) -> Option<Invite> {
+    serde_json::from_str(raw).ok()
 }
 
 #[cfg(test)]
@@ -389,5 +416,10 @@ mod tests {
             session.state().await,
             SessionState::Idle | SessionState::Failed { .. }
         ));
+    }
+
+    #[test]
+    fn ignores_a_corrupt_saved_invite() {
+        assert!(parse_last_invite("not an invite").is_none());
     }
 }
