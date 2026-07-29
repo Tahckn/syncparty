@@ -292,23 +292,54 @@ impl PartySession {
         let nickname = self.settings.get().nickname;
         ClientLauncher::discover(&self.settings)?
             .join(invite, &nickname)
-            .await
+            .await?;
+        self.secrets
+            .set(SecretKey::LastInvite, &encode_last_invite(invite)?)
+    }
+
+    /// Reopens the last successfully launched guest session after an app restart.
+    pub async fn resume_last_session(&self) -> Result<Option<Invite>> {
+        let Some(raw) = self.secrets.get(SecretKey::LastInvite)? else {
+            return Ok(None);
+        };
+
+        let invite = match parse_last_invite(&raw) {
+            Some(invite) => invite,
+            None => {
+                self.secrets.delete(SecretKey::LastInvite)?;
+                return Ok(None);
+            }
+        };
+        self.join(&invite).await?;
+        Ok(Some(invite))
     }
 
     /// Opens the host's own Syncplay client on the party it is running.
     ///
-    /// Pinned to the bound address rather than the invite's primary: the host
-    /// is not on the tailnet a masqueraded address belongs to, so sending
-    /// their client there would leave it waiting on a connection that can
-    /// never open.
+    /// This deliberately bypasses `join`: a host-local connection is not a
+    /// guest session and must not replace the invite resumed on next startup.
     pub async fn join_as_host(&self) -> Result<()> {
         let SessionState::Hosting(info) = self.state().await else {
             return Err(SyncPartyError::ServerNotRunning);
         };
 
-        self.join(&info.invite.at_host(&info.tailscale_address))
+        let nickname = self.settings.get().nickname;
+        ClientLauncher::discover(&self.settings)?
+            .join(&info.invite.at_host(&info.tailscale_address), &nickname)
             .await
     }
+
+    pub fn clear_last_session(&self) -> Result<()> {
+        self.secrets.delete(SecretKey::LastInvite)
+    }
+}
+
+fn parse_last_invite(raw: &str) -> Option<Invite> {
+    serde_json::from_str(raw).ok()
+}
+
+fn encode_last_invite(invite: &Invite) -> Result<String> {
+    Ok(serde_json::to_string(invite)?)
 }
 
 #[cfg(test)]
@@ -419,5 +450,26 @@ mod tests {
             session.state().await,
             SessionState::Idle | SessionState::Failed { .. }
         ));
+    }
+
+    #[test]
+    fn ignores_a_corrupt_saved_invite() {
+        assert!(parse_last_invite("not an invite").is_none());
+    }
+
+    #[test]
+    fn saved_invites_round_trip() {
+        let invite = Invite {
+            host: "movie-box.tail1a2b3.ts.net".to_owned(),
+            alternate_hosts: Vec::new(),
+            port: 8999,
+            password: "swordfish".to_owned(),
+            room: "MovieNight".to_owned(),
+        };
+
+        assert_eq!(
+            parse_last_invite(&encode_last_invite(&invite).expect("encode")),
+            Some(invite)
+        );
     }
 }

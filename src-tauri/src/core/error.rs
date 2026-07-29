@@ -121,14 +121,17 @@ impl SyncPartyError {
     }
 }
 
-/// Tauri requires command errors to be `Serialize`. Emitting `{kind, message}`
-/// keeps the wire shape stable even as variants gain fields.
+/// Tauri requires command errors to be `Serialize`. The login URL is the one
+/// recovery value the UI needs alongside the stable kind and message.
 impl Serialize for SyncPartyError {
     fn serialize<S: Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;
-        let mut state = serializer.serialize_struct("SyncPartyError", 2)?;
+        let mut state = serializer.serialize_struct("SyncPartyError", 3)?;
         state.serialize_field("kind", self.kind())?;
         state.serialize_field("message", &self.to_string())?;
+        if let Self::TailscaleLoginRequired { auth_url } = self {
+            state.serialize_field("authUrl", auth_url)?;
+        }
         state.end()
     }
 }
@@ -154,5 +157,21 @@ impl From<reqwest::Error> for SyncPartyError {
 impl From<keyring::Error> for SyncPartyError {
     fn from(value: keyring::Error) -> Self {
         Self::Secret(value.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn login_errors_keep_the_authorization_url() {
+        let error = SyncPartyError::TailscaleLoginRequired {
+            auth_url: "https://login.tailscale.com/a".to_owned(),
+        };
+        let value = serde_json::to_value(error).expect("serialize");
+
+        assert_eq!(value["kind"], "tailscale_login_required");
+        assert_eq!(value["authUrl"], "https://login.tailscale.com/a");
     }
 }

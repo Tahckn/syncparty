@@ -1,6 +1,9 @@
 //! Starting and stopping the Syncplay server process.
 
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::net::Ipv4Addr;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -141,24 +144,50 @@ impl UvManagedServer {
         if let Some(parent) = log_path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
+        // Each server run gets one fresh diagnostic log; stale output is more
+        // misleading than useful when troubleshooting a new party.
+        let _ = reset_log(&log_path);
 
         if let Some(stdout) = child.stdout.take() {
-            spawn_reader(BufReader::new(stdout), Arc::clone(&self.bus), false);
+            spawn_reader(
+                BufReader::new(stdout),
+                Arc::clone(&self.bus),
+                false,
+                log_path.clone(),
+            );
         }
 
         if let Some(stderr) = child.stderr.take() {
-            spawn_reader(BufReader::new(stderr), Arc::clone(&self.bus), true);
+            spawn_reader(
+                BufReader::new(stderr),
+                Arc::clone(&self.bus),
+                true,
+                log_path,
+            );
         }
     }
 }
 
-fn spawn_reader<R>(reader: BufReader<R>, bus: Arc<dyn EventBus>, is_error: bool)
+fn reset_log(path: &Path) -> std::io::Result<()> {
+    std::fs::File::create(path).map(drop)
+}
+
+fn spawn_reader<R>(reader: BufReader<R>, bus: Arc<dyn EventBus>, is_error: bool, log_path: PathBuf)
 where
     R: tokio::io::AsyncRead + Unpin + Send + 'static,
 {
     tokio::spawn(async move {
         let mut lines = reader.lines();
+        let mut log = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(log_path)
+            .ok();
         while let Ok(Some(line)) = lines.next_line().await {
+            if let Some(log) = &mut log {
+                let stream = if is_error { "stderr" } else { "stdout" };
+                let _ = writeln!(log, "[{stream}] {line}");
+            }
             bus.publish(AppEvent::ServerLog { line, is_error });
         }
     });
@@ -297,5 +326,19 @@ mod tests {
     #[tokio::test]
     async fn stopping_something_that_never_started_is_not_an_error() {
         assert!(server().stop().await.is_ok());
+    }
+
+    #[test]
+    fn starting_a_server_replaces_an_old_log() {
+        let directory =
+            std::env::temp_dir().join(format!("syncparty-log-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(&directory).expect("directory");
+        let log = directory.join("syncplay-server.log");
+        std::fs::write(&log, "stale output").expect("seed log");
+
+        reset_log(&log).expect("reset");
+
+        assert_eq!(std::fs::read_to_string(log).expect("read log"), "");
     }
 }

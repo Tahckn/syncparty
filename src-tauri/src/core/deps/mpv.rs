@@ -10,9 +10,9 @@ use crate::core::deps::{Dependency, DependencyId, DependencyStatus, ModeRequirem
 use crate::core::error::Result;
 use crate::core::events::ProgressSink;
 use crate::core::process;
-use crate::core::syncplay::{find_mpv, MPV_KEY};
+use crate::core::syncplay::{find_player, MPV_KEY};
 
-const DISPLAY_NAME: &str = "mpv";
+const DISPLAY_NAME: &str = "mpv or VLC";
 const MANUAL_URL: &str = "https://mpv.io/installation/";
 
 pub struct MpvDependency {
@@ -45,8 +45,8 @@ impl Dependency for MpvDependency {
         DISPLAY_NAME
     }
 
-    /// Syncplay can drive other players, but mpv is the one syncparty sets up
-    /// and the only one it can promise works.
+    /// Either supported player satisfies the requirement; automatic install
+    /// remains mpv because it is available from both package managers.
     fn required_for(&self) -> ModeRequirement {
         ModeRequirement::Both
     }
@@ -54,7 +54,7 @@ impl Dependency for MpvDependency {
     async fn detect(&self) -> DependencyStatus {
         let manual = self.settings.executable_override(MPV_KEY);
 
-        let Some(path) = find_mpv(manual.as_deref()) else {
+        let Some(path) = find_player(manual.as_deref()) else {
             return DependencyStatus::Missing;
         };
 

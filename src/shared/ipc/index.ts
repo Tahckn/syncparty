@@ -30,6 +30,7 @@ const EVENT_CHANNEL = "syncparty://event";
 export interface BackendError {
   kind: string;
   message: string;
+  authUrl?: string;
 }
 
 export function isBackendError(value: unknown): value is BackendError {
@@ -79,6 +80,8 @@ export const ipc = {
   /** Accepts a bare code, a deep link, or a whole chat message. */
   decodeInvite: (text: string) => invoke<Invite>("decode_invite", { text }),
   joinParty: (invite: Invite) => invoke<void>("join_party", { invite }),
+  resumeLastSession: () => invoke<Invite | null>("resume_last_session"),
+  clearLastSession: () => invoke<void>("clear_last_session"),
 
   /**
    * Opens the host's own Syncplay client on the party they are running.

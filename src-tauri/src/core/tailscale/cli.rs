@@ -107,6 +107,10 @@ impl TailscaleClient for CliTailscaleClient {
             // opens exactly once no matter how long the sign-in takes.
             if let Some(auth_url) = self.status_json().await.ok().and_then(|s| s.auth_url) {
                 if !auth_url.is_empty() {
+                    // The daemon keeps the authorization request after the
+                    // CLI disconnects; leaving this waiter alive would leak a
+                    // process for every attempted sign-in.
+                    let _ = child.kill().await;
                     return Ok(AuthFlow::NeedsLogin { auth_url });
                 }
             }

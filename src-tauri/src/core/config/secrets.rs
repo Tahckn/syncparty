@@ -22,6 +22,8 @@ pub enum SecretKey {
     ServerSalt,
     /// Discord webhook used to announce that the party is ready.
     DiscordWebhook,
+    /// The most recent guest invite, so restarting the app reopens the room.
+    LastInvite,
 }
 
 impl SecretKey {
@@ -30,6 +32,7 @@ impl SecretKey {
             Self::ServerPassword => "server-password",
             Self::ServerSalt => "server-salt",
             Self::DiscordWebhook => "discord-webhook",
+            Self::LastInvite => "last-invite",
         }
     }
 }

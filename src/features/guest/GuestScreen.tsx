@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useAppState } from "@/app/AppState";
 import { useTranslate } from "@/shared/i18n";
@@ -21,6 +21,7 @@ export function GuestScreen() {
   const [fromLink, setFromLink] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
+  const attemptedResume = useRef(false);
 
   // A link that arrived while the app was open takes over the screen.
   useEffect(() => {
@@ -32,6 +33,25 @@ export function GuestScreen() {
     setParseError(null);
     clearPendingInvite();
   }, [pendingInvite, clearPendingInvite]);
+
+  useEffect(() => {
+    if (pendingInvite || attemptedResume.current) return;
+    attemptedResume.current = true;
+
+    let cancelled = false;
+    void ipc.resumeLastSession()
+      .then((saved) => {
+        if (!cancelled && saved) {
+          setInvite(saved);
+          setJoined(true);
+        }
+      })
+      .catch(reportFailure);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingInvite, reportFailure]);
 
   async function decode() {
     setParseError(null);
@@ -55,6 +75,7 @@ export function GuestScreen() {
   }
 
   function reset() {
+    void ipc.clearLastSession().catch(reportFailure);
     setInvite(null);
     setJoined(false);
     setText("");

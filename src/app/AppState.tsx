@@ -15,7 +15,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { errorMessage, ipc, onAppEvent } from "@/shared/ipc";
+import { errorMessage, ipc, isBackendError, onAppEvent } from "@/shared/ipc";
 import type { AppEvent } from "@/shared/types/AppEvent";
 import type { AppSettings } from "@/shared/types/AppSettings";
 import type { DependencyId } from "@/shared/types/DependencyId";
@@ -162,6 +162,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           ? String((error as { kind: unknown }).kind)
           : "other",
       message: errorMessage(error),
+      authUrl: isBackendError(error) ? error.authUrl : undefined,
     });
   }, []);
 

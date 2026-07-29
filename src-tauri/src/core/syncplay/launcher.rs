@@ -33,6 +33,18 @@ const MPV_FALLBACKS: &[&str] = &[
     r"C:\Program Files\mpv.net\mpvnet.exe",
 ];
 
+#[cfg(windows)]
+const VLC_FALLBACKS: &[&str] = &[
+    r"C:\Program Files\VideoLAN\VLC\vlc.exe",
+    r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe",
+];
+
+#[cfg(target_os = "macos")]
+const VLC_FALLBACKS: &[&str] = &["/Applications/VLC.app/Contents/MacOS/VLC"];
+
+#[cfg(not(any(windows, target_os = "macos")))]
+const VLC_FALLBACKS: &[&str] = &["/usr/bin/vlc", "/usr/local/bin/vlc"];
+
 #[cfg(target_os = "macos")]
 const MPV_FALLBACKS: &[&str] = &[
     "/Applications/mpv.app/Contents/MacOS/mpv",
@@ -57,11 +69,13 @@ pub fn find_client(manual: Option<&str>) -> Option<PathBuf> {
         .or_else(|| process::locate("syncplay", CLIENT_FALLBACKS))
 }
 
-/// Locates mpv, the player Syncplay drives.
-pub fn find_mpv(manual: Option<&str>) -> Option<PathBuf> {
+/// Locates a player Syncplay can drive, preferring mpv when both are present.
+pub fn find_player(manual: Option<&str>) -> Option<PathBuf> {
     manual
         .and_then(|raw| process::resolve_manual(raw, "mpv"))
+        .or_else(|| manual.and_then(|raw| process::resolve_manual(raw, "vlc")))
         .or_else(|| process::locate("mpv", MPV_FALLBACKS))
+        .or_else(|| process::locate("vlc", VLC_FALLBACKS))
 }
 
 /// How long to give one candidate address before moving on. Tailnet peers
@@ -169,12 +183,12 @@ impl ClientLauncher {
     /// reported as ready is one this can actually launch.
     pub fn discover(settings: &ConfigStore) -> Result<Self> {
         let client_override = settings.executable_override(SYNCPLAY_CLIENT_KEY);
-        let mpv_override = settings.executable_override(MPV_KEY);
+        let player_override = settings.executable_override(MPV_KEY);
 
         Ok(Self {
             client: find_client(client_override.as_deref())
                 .ok_or_else(|| SyncPartyError::DependencyMissing("Syncplay".to_owned()))?,
-            player: find_mpv(mpv_override.as_deref()),
+            player: find_player(player_override.as_deref()),
         })
     }
 
@@ -412,5 +426,20 @@ mod tests {
         let error = classify_unreachable(&[], &candidates(&["a"]), 8999);
 
         assert_eq!(error.kind(), "party_unreachable");
+    }
+    #[test]
+    fn finds_vlc_in_a_manually_selected_folder() {
+        let directory =
+            std::env::temp_dir().join(format!("syncparty-vlc-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(&directory).expect("directory");
+        let vlc = directory.join(if cfg!(windows) { "vlc.exe" } else { "vlc" });
+        std::fs::write(&vlc, b"").expect("vlc");
+
+        assert_eq!(
+            find_player(directory.to_str()),
+            Some(vlc),
+            "a VLC folder should satisfy the player requirement"
+        );
     }
 }

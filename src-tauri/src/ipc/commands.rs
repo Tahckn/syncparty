@@ -132,6 +132,16 @@ pub async fn join_hosted_party(state: State<'_, AppState>) -> Result<()> {
 }
 
 #[tauri::command]
+pub async fn resume_last_session(state: State<'_, AppState>) -> Result<Option<Invite>> {
+    state.session.resume_last_session().await
+}
+
+#[tauri::command]
+pub fn clear_last_session(state: State<'_, AppState>) -> Result<()> {
+    state.session.clear_last_session()
+}
+
+#[tauri::command]
 pub fn discord_status(state: State<'_, AppState>) -> bool {
     state.discord.is_configured()
 }
