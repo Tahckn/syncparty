@@ -47,11 +47,19 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Builds are unsigned. Windows SmartScreen and macOS Gatekeeper will
-      # both warn on first run; this is called out in the README.
+      # The installers themselves are still unsigned (no Authenticode/Apple
+      # Developer ID certificate) — SmartScreen and Gatekeeper will warn on
+      # first run regardless. TAURI_SIGNING_PRIVATE_KEY is a separate,
+      # unrelated keypair: it signs the *update package* so the in-app
+      # updater can verify an update actually came from this repo's CI
+      # before installing it. Losing that key would only break auto-update,
+      # not the ability to cut releases — a new one can be generated and its
+      # public half swapped into tauri.conf.json.
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           args: --target ${{ matrix.target }}
           tagName: ${{ github.ref_name }}
@@ -59,6 +67,9 @@ jobs:
           # Published rather than drafted so the download links work the moment
           # the tag is pushed — this is how guests are meant to get the app.
           releaseDraft: false
+          # Aggregates every platform's signed artifacts into the latest.json
+          # manifest the updater endpoint in tauri.conf.json points at.
+          includeUpdaterJson: true
           releaseBody: |
             ## Install
 
@@ -68,6 +79,9 @@ jobs:
             Everything syncparty needs — Tailscale, the Syncplay client, mpv,
             and the Python environment for hosting — is checked on first launch
             and installed for you if it is missing.
+
+            From this release on, syncparty checks for updates on startup and
+            offers to install them in place — no need to come back here again.
 
             ## Before you open it
 

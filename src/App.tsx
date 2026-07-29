@@ -12,6 +12,7 @@ import {
   useTranslate,
   type MessageKey,
 } from "@/shared/i18n";
+import { useAppUpdate } from "@/shared/hooks/useAppUpdate";
 import { Badge, Button } from "@/shared/ui";
 import type { AppMode } from "@/shared/types/AppMode";
 
@@ -67,6 +68,7 @@ function Shell() {
           reason has to be visible rather than hidden behind a spinner that
           never resolves. */}
       <FailureBanner />
+      <UpdateBanner />
 
       <main className="min-h-0 flex-1 overflow-y-auto">
         {!settings ? (
@@ -174,6 +176,48 @@ function FailureBanner() {
             {t("common.close")}
           </Button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Tells the user a downloaded update is ready to install.
+ *
+ * The restart button is withheld while a party is running — installing
+ * replaces the running binary and relaunches it, which would take the
+ * Syncplay server down along with everyone still watching. Once hosting
+ * stops (or on the guest side, where this never applies), the button appears
+ * on its own; nothing needs to be re-triggered manually.
+ */
+function UpdateBanner() {
+  const t = useTranslate();
+  const { session } = useAppState();
+  const { state, install } = useAppUpdate();
+
+  if (state.status !== "ready") return null;
+
+  const hosting = session.phase === "hosting";
+
+  return (
+    <div className="shrink-0 border-b border-accent/40 bg-accent/10 px-5 py-3">
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-accent">
+            {t("update.title")} — v{state.version}
+          </p>
+          {hosting && (
+            <p className="mt-0.5 text-xs text-ink-muted">
+              {t("update.hostingNotice")}
+            </p>
+          )}
+        </div>
+
+        {!hosting && (
+          <Button variant="primary" onClick={() => void install()}>
+            {t("update.restart")}
+          </Button>
+        )}
       </div>
     </div>
   );

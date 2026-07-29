@@ -139,6 +139,10 @@ export const en = {
   "error.party_not_running":
     "The host is reachable, but nothing answered there.",
   "error.party_unreachable": "Could not reach the host.",
+
+  "update.title": "Update ready",
+  "update.restart": "Restart & update",
+  "update.hostingNotice": "Will offer to restart once this party ends.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -274,6 +278,10 @@ export const tr: Messages = {
     "Bu cihazın Tailscale üzerinden host'a erişimi yok.",
   "error.party_not_running": "Host'a ulaşılıyor ama orada bir yanıt yok.",
   "error.party_unreachable": "Host'a ulaşılamadı.",
+
+  "update.title": "Güncelleme hazır",
+  "update.restart": "Yeniden başlat ve güncelle",
+  "update.hostingNotice": "Bu film gecesi bitince yeniden başlatma seçeneği sunulacak.",
 };
 
 export const dictionaries: Record<string, Messages> = { en, tr };

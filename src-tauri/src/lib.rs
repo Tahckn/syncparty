@@ -43,6 +43,11 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        // Update checking/downloading lives entirely on the frontend via
+        // `@tauri-apps/plugin-updater` — there is no app-specific logic here,
+        // just this plugin and the one that lets it relaunch afterwards.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             let handle = app.handle().clone();
             let state = AppState::build(&handle)?;

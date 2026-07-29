@@ -32,9 +32,14 @@ public internet.
 ## Install
 
 Grab the latest build from [Releases](https://github.com/Tahckn/syncparty/releases).
+That's the only manual install — from v0.2.0 on, syncparty checks for updates
+on startup and offers to install new ones in place.
 
-Releases are currently unsigned, so Windows SmartScreen and macOS Gatekeeper
-will both warn on first run.
+The installers themselves are unsigned, so Windows SmartScreen and macOS
+Gatekeeper will both warn on first run. Updates are still verified: they are
+cryptographically signed and checked against a key built into the app before
+anything is installed, so this warning is a one-time thing rather than
+something you see on every update.
 
 Everything else — Tailscale, the Syncplay client, mpv, and the Python
 environment the server needs — is detected on first launch and installed for
@@ -83,6 +88,12 @@ A few decisions worth knowing about:
   passwords from it; a new salt on every start would silently invalidate them.
 - **Stopping a party does not stop Tailscale.** Your tailnet is used for other
   things.
+- **Updates download in the background but never install themselves.**
+  syncparty checks on startup and, if there is a new version, downloads it
+  silently — there is no reason to make that wait for anyone. Installing
+  replaces the running binary and restarts the app, though, which would take
+  the Syncplay server down mid-film, so that step is always an explicit
+  button, and it stays hidden for as long as a party is running.
 
 ## Building from source
 

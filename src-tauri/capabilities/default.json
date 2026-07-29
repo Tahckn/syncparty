@@ -9,6 +9,8 @@
     "dialog:default",
     "shell:default",
     "opener:allow-open-url",
-    "clipboard-manager:allow-write-text"
+    "clipboard-manager:allow-write-text",
+    "updater:default",
+    "process:allow-restart"
   ]
 }
