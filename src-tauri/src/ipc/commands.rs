@@ -9,6 +9,7 @@ use ts_rs::TS;
 
 use crate::core::config::{AppMode, AppSettings};
 use crate::core::deps::{DependencyId, PreflightReport};
+use crate::core::diagnostics::{self, DiagnosticsReport};
 use crate::core::error::{Result, SyncPartyError};
 use crate::core::invite::Invite;
 use crate::core::notify;
@@ -76,6 +77,12 @@ pub fn update_settings(state: State<'_, AppState>, patch: SettingsPatch) -> Resu
 #[tauri::command]
 pub async fn run_preflight(state: State<'_, AppState>, mode: AppMode) -> Result<PreflightReport> {
     Ok(state.dependencies.preflight(mode).await)
+}
+
+#[tauri::command]
+pub async fn run_diagnostics(state: State<'_, AppState>) -> Result<DiagnosticsReport> {
+    let mode = state.settings.get().mode.unwrap_or(AppMode::Host);
+    Ok(diagnostics::collect(&state.dependencies, &state.session, mode).await)
 }
 
 /// Installs one dependency. Progress arrives as events while this runs.

@@ -7,6 +7,7 @@
 
 pub mod config;
 pub mod deps;
+pub mod diagnostics;
 pub mod error;
 pub mod events;
 pub mod invite;

@@ -12,6 +12,7 @@ import type { AppEvent } from "@/shared/types/AppEvent";
 import type { AppMode } from "@/shared/types/AppMode";
 import type { AppSettings } from "@/shared/types/AppSettings";
 import type { DependencyId } from "@/shared/types/DependencyId";
+import type { DiagnosticsReport } from "@/shared/types/DiagnosticsReport";
 import type { HostingInfo } from "@/shared/types/HostingInfo";
 import type { Invite } from "@/shared/types/Invite";
 import type { PreflightReport } from "@/shared/types/PreflightReport";
@@ -57,6 +58,8 @@ export const ipc = {
 
   runPreflight: (mode: AppMode) =>
     invoke<PreflightReport>("run_preflight", { mode }),
+
+  runDiagnostics: () => invoke<DiagnosticsReport>("run_diagnostics"),
 
   /** Progress arrives as `installProgress` events while this is in flight. */
   installDependency: (id: DependencyId) =>

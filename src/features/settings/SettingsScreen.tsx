@@ -6,6 +6,8 @@ import { errorMessage, ipc } from "@/shared/ipc";
 import { Button, Card, Field, Input, PageHeader, Toggle } from "@/shared/ui";
 import type { AppMode } from "@/shared/types/AppMode";
 
+import { DiagnosticsPanel } from "./DiagnosticsPanel";
+
 export function SettingsScreen() {
   const t = useTranslate();
   const { settings, patchSettings, reportFailure } = useAppState();
@@ -100,6 +102,8 @@ export function SettingsScreen() {
           }
         />
       </Card>
+
+      <DiagnosticsPanel />
 
       <DiscordSettings
         enabled={settings.discordEnabled}
