@@ -7,7 +7,10 @@ import type { ServerState } from "./ServerState";
  */
 export type HostingInfo = { invite: Invite, inviteCode: string, deepLink: string, 
 /**
- * This machine's own tailnet address, shown for troubleshooting. May
- * differ from `invite.host` when the node is shared into another tailnet.
+ * This machine's own tailnet address — the one the server is bound to.
+ *
+ * Not decoration: it is the address the host's own Syncplay has to use.
+ * `invite.host` may be a masqueraded address that only resolves inside
+ * the tailnet this node was shared into, which does not include here.
  */
 tailscaleAddress: string, server: ServerState, monitorAttached: boolean, };

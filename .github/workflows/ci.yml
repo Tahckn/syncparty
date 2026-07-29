@@ -6,6 +6,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Neither job pushes, comments, or otherwise writes anything back — this is
+# read-only by design, including for PRs from forks.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true

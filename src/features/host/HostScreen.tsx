@@ -21,6 +21,9 @@ export function HostScreen() {
 
   const [busy, setBusy] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+  const [joinState, setJoinState] = useState<"idle" | "opening" | "opened">(
+    "idle",
+  );
 
   const starting = session.phase === "starting";
   const hosting = session.phase === "hosting";
@@ -33,6 +36,21 @@ export function HostScreen() {
       reportFailure(error);
     } finally {
       setBusy(false);
+    }
+  }
+
+  /**
+   * The host watches too, so they need their own client. It connects on the
+   * bound address rather than the invite's — the backend handles that.
+   */
+  async function join() {
+    setJoinState("opening");
+    try {
+      await ipc.joinHostedParty();
+      setJoinState("opened");
+    } catch (error) {
+      setJoinState("idle");
+      reportFailure(error);
     }
   }
 
@@ -58,13 +76,25 @@ export function HostScreen() {
           </div>
 
           {hosting ? (
-            <Button
-              variant="danger"
-              disabled={busy}
-              onClick={() => void run(ipc.stopHosting)}
-            >
-              {t("host.stop")}
-            </Button>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                variant="primary"
+                disabled={joinState === "opening"}
+                onClick={() => void join()}
+              >
+                {joinState === "opening" ? t("host.joining") : t("host.join")}
+              </Button>
+              <Button
+                variant="danger"
+                disabled={busy}
+                onClick={() => {
+                  setJoinState("idle");
+                  void run(ipc.stopHosting);
+                }}
+              >
+                {t("host.stop")}
+              </Button>
+            </div>
           ) : (
             <Button
               variant="primary"
@@ -79,6 +109,11 @@ export function HostScreen() {
 
       {hosting && (
         <>
+          {joinState === "opened" && (
+            <p className="rounded-panel border border-good/40 bg-good/10 px-4 py-3 text-sm text-good">
+              {t("host.joined")}
+            </p>
+          )}
           <InviteCard hosting={session} />
           <RoomPanel snapshot={room} monitorAttached={session.monitorAttached} />
         </>
@@ -92,19 +127,17 @@ export function HostScreen() {
           </Button>
         }
       >
-        {logOpen ? (
-          serverLog.length === 0 ? (
+        {/* Collapsed shows nothing rather than a line count: the count is not
+            information anyone acts on, and the header already says the log is
+            there. */}
+        {logOpen &&
+          (serverLog.length === 0 ? (
             <p className="text-sm text-ink-faint">{t("host.logs.empty")}</p>
           ) : (
             <pre className="selectable max-h-64 overflow-auto rounded-lg bg-canvas p-3 font-mono text-xs leading-relaxed text-ink-muted">
               {serverLog.join("\n")}
             </pre>
-          )
-        ) : (
-          <p className="text-sm text-ink-faint">
-            {serverLog.length} {t("host.logs.title").toLowerCase()}
-          </p>
-        )}
+          ))}
       </Card>
     </div>
   );

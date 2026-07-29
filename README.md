@@ -60,6 +60,12 @@ All traffic rides the existing WireGuard tunnel.
 
 A few decisions worth knowing about:
 
+- **An invite carries every address that reaches the server.** No single one
+  works for everybody: a node shared into somebody else's tailnet is reached on
+  a masqueraded address that means nothing anywhere else — including on the
+  host's own machine — while peers inside the host's tailnet need its real
+  address. The joining side tries each candidate and uses whichever answers,
+  so the host never has to know who is on which tailnet.
 - **Portable builds can be pointed at by hand.** Detection covers installers
   and `PATH`, which misses an mpv or Syncplay zip extracted to some folder.
   Rather than guessing at where people keep those, the setup screen has a
@@ -115,6 +121,13 @@ src-tauri/
 
 `core` never imports from `ipc`, which is what lets the whole of it run under
 `cargo test` without a webview.
+
+## Contributing
+
+Issues and pull requests are welcome — you do not need to be a collaborator,
+forking and opening a PR against `main` is enough. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the fork/branch/PR workflow, what CI
+checks before a PR can merge, and how the code is arranged.
 
 ## Licence
 

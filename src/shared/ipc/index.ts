@@ -83,6 +83,15 @@ export const ipc = {
   resumeLastSession: () => invoke<Invite | null>("resume_last_session"),
   clearLastSession: () => invoke<void>("clear_last_session"),
 
+  /**
+   * Opens the host's own Syncplay client on the party they are running.
+   *
+   * Not the same as `joinParty` with the shared invite: the host has to
+   * connect on the address the server is bound to, which is not always the
+   * one guests are given.
+   */
+  joinHostedParty: () => invoke<void>("join_hosted_party"),
+
   discordStatus: () => invoke<boolean>("discord_status"),
   setDiscordWebhook: (url: string) =>
     invoke<void>("set_discord_webhook", { url }),

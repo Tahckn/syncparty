@@ -5,6 +5,9 @@
 //! into a dialog, the guest clicks once.
 
 use std::path::PathBuf;
+use std::time::Duration;
+
+use tokio::net::TcpStream;
 
 use crate::core::config::ConfigStore;
 use crate::core::error::{Result, SyncPartyError};
@@ -74,6 +77,39 @@ pub fn find_player(manual: Option<&str>) -> Option<PathBuf> {
         .or_else(|| process::locate("vlc", VLC_FALLBACKS))
 }
 
+/// How long to give one candidate address before moving on. Tailnet peers
+/// answer in milliseconds when they answer at all, so this only has to be long
+/// enough to survive a slow first handshake.
+const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// Works out which of an invite's addresses actually reaches the server.
+///
+/// Necessary because the host cannot know which address a given guest should
+/// use: a masqueraded address only resolves inside the tailnet the node was
+/// shared into, and the host's own machine is not in that tailnet either.
+/// Trying each one is cheap and removes the guesswork.
+pub async fn reachable_host(invite: &Invite) -> Result<String> {
+    let candidates = invite.candidates();
+
+    for host in &candidates {
+        let address = format!("{host}:{}", invite.port);
+
+        if let Ok(Ok(stream)) =
+            tokio::time::timeout(PROBE_TIMEOUT, TcpStream::connect(&address)).await
+        {
+            // Nothing is sent on it; the connection was only ever the question.
+            drop(stream);
+            return Ok(host.clone());
+        }
+    }
+
+    Err(SyncPartyError::MonitorFailed(format!(
+        "none of these addresses answered on port {}: {}",
+        invite.port,
+        candidates.join(", ")
+    )))
+}
+
 pub struct ClientLauncher {
     client: PathBuf,
     player: Option<PathBuf>,
@@ -97,12 +133,17 @@ impl ClientLauncher {
 
     /// Launches the client into the party described by `invite`.
     ///
+    /// The address is resolved first, because handing Syncplay one that cannot
+    /// be reached makes it sit there and then quit with nothing useful said.
+    ///
     /// The client is detached deliberately — it outlives syncparty, so closing
     /// this window mid-film does not kill the film.
-    pub fn join(&self, invite: &Invite, nickname: &str) -> Result<()> {
+    pub async fn join(&self, invite: &Invite, nickname: &str) -> Result<()> {
+        let host = reachable_host(invite).await?;
+
         let mut command = process::spawnable(&self.client);
         command
-            .args(self.arguments(invite, nickname))
+            .args(self.arguments(invite, &host, nickname))
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
 
@@ -122,10 +163,10 @@ impl ClientLauncher {
     /// `--host` carries the port too: the client splits on the last colon, so
     /// there is no separate `--port` flag. `--no-store` keeps a one-off party
     /// from overwriting whatever the guest normally connects to.
-    fn arguments(&self, invite: &Invite, nickname: &str) -> Vec<String> {
+    fn arguments(&self, invite: &Invite, host: &str, nickname: &str) -> Vec<String> {
         let mut arguments = vec![
             "--host".to_owned(),
-            format!("{}:{}", invite.host, invite.port),
+            format!("{host}:{}", invite.port),
             "--name".to_owned(),
             nickname.to_owned(),
             "--room".to_owned(),
@@ -151,6 +192,7 @@ mod tests {
     fn sample_invite() -> Invite {
         Invite {
             host: "movie-box.tail1a2b3.ts.net".to_owned(),
+            alternate_hosts: Vec::new(),
             port: 8999,
             password: "swordfish".to_owned(),
             room: "MovieNight".to_owned(),
@@ -164,9 +206,13 @@ mod tests {
         }
     }
 
+    fn arguments_for(launcher: &ClientLauncher) -> Vec<String> {
+        launcher.arguments(&sample_invite(), "movie-box.tail1a2b3.ts.net", "ahmet")
+    }
+
     #[test]
     fn folds_the_port_into_the_host_argument() {
-        let arguments = launcher_without_player().arguments(&sample_invite(), "ahmet");
+        let arguments = arguments_for(&launcher_without_player());
 
         let host_index = arguments
             .iter()
@@ -180,17 +226,31 @@ mod tests {
     }
 
     #[test]
-    fn always_passes_no_store_so_a_party_does_not_overwrite_saved_settings() {
-        let arguments = launcher_without_player().arguments(&sample_invite(), "ahmet");
+    fn uses_the_resolved_address_rather_than_the_invite_primary() {
+        let arguments =
+            launcher_without_player().arguments(&sample_invite(), "100.79.178.123", "ahmet");
 
-        assert!(arguments.contains(&"--no-store".to_owned()));
+        let host_index = arguments
+            .iter()
+            .position(|a| a == "--host")
+            .expect("--host");
+        assert_eq!(
+            arguments[host_index + 1],
+            "100.79.178.123:8999",
+            "whichever address answered is the one Syncplay must be given"
+        );
+    }
+
+    #[test]
+    fn always_passes_no_store_so_a_party_does_not_overwrite_saved_settings() {
+        assert!(arguments_for(&launcher_without_player()).contains(&"--no-store".to_owned()));
     }
 
     #[test]
     fn omits_the_player_path_when_mpv_is_not_installed() {
-        let arguments = launcher_without_player().arguments(&sample_invite(), "ahmet");
-
-        assert!(!arguments.iter().any(|a| a == "--player-path"));
+        assert!(!arguments_for(&launcher_without_player())
+            .iter()
+            .any(|a| a == "--player-path"));
     }
 
     #[test]
@@ -200,11 +260,53 @@ mod tests {
             player: Some(PathBuf::from("/usr/local/bin/mpv")),
         };
 
-        let arguments = launcher.arguments(&sample_invite(), "ahmet");
+        let arguments = arguments_for(&launcher);
         let index = arguments
             .iter()
             .position(|a| a == "--player-path")
             .expect("--player-path");
         assert_eq!(arguments[index + 1], "/usr/local/bin/mpv");
+    }
+
+    #[tokio::test]
+    async fn picks_the_address_that_answers_and_skips_the_ones_that_do_not() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("listener");
+        let port = listener.local_addr().expect("addr").port();
+
+        let invite = Invite {
+            // 192.0.2.0/24 is reserved for documentation and routes nowhere,
+            // so this stands in for an address that cannot be reached.
+            host: "192.0.2.1".to_owned(),
+            alternate_hosts: vec!["127.0.0.1".to_owned()],
+            port,
+            ..sample_invite()
+        };
+
+        assert_eq!(
+            reachable_host(&invite).await.expect("one address answers"),
+            "127.0.0.1"
+        );
+    }
+
+    #[tokio::test]
+    async fn reports_every_address_it_tried_when_none_answer() {
+        let invite = Invite {
+            host: "192.0.2.1".to_owned(),
+            alternate_hosts: vec!["192.0.2.2".to_owned()],
+            // Nothing listens here, and the port is in the message.
+            port: 8999,
+            ..sample_invite()
+        };
+
+        let error = reachable_host(&invite)
+            .await
+            .expect_err("nothing should answer");
+
+        let message = error.to_string();
+        assert!(message.contains("192.0.2.1"), "{message}");
+        assert!(message.contains("192.0.2.2"), "{message}");
+        assert!(message.contains("8999"), "{message}");
     }
 }

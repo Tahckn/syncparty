@@ -24,8 +24,18 @@ const TOKEN_PREFIX: &str = "SP1.";
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct Invite {
-    /// Tailscale address or MagicDNS name of the host.
+    /// The address most guests should use.
     pub host: String,
+    /// Other addresses that reach the same server.
+    ///
+    /// No single address suits everyone. A node shared into somebody else's
+    /// tailnet is reached on a masqueraded address that means nothing anywhere
+    /// else — including on the host's own machine — while peers inside the
+    /// host's tailnet need its real address or MagicDNS name. Carrying every
+    /// candidate lets the joining side find out which one actually answers
+    /// instead of the host having to know who is on which tailnet.
+    #[serde(default)]
+    pub alternate_hosts: Vec<String>,
     pub port: u16,
     pub password: String,
     pub room: String,
@@ -41,6 +51,10 @@ struct Payload {
     p: u16,
     pw: String,
     r: String,
+    /// Absent in the first tokens syncparty produced, so it stays optional
+    /// rather than forcing a format bump that would reject them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    a: Vec<String>,
 }
 
 impl Invite {
@@ -52,6 +66,7 @@ impl Invite {
             p: self.port,
             pw: self.password.clone(),
             r: self.room.clone(),
+            a: self.alternate_hosts.clone(),
         };
 
         // Serialising a struct we own cannot fail.
@@ -91,10 +106,34 @@ impl Invite {
 
         Ok(Self {
             host: payload.h,
+            alternate_hosts: payload.a,
             port: payload.p,
             password: payload.pw,
             room: payload.r,
         })
+    }
+
+    /// Every address worth trying, primary first and duplicates removed.
+    pub fn candidates(&self) -> Vec<String> {
+        let mut seen = Vec::with_capacity(1 + self.alternate_hosts.len());
+
+        for host in std::iter::once(&self.host).chain(&self.alternate_hosts) {
+            let host = host.trim();
+            if !host.is_empty() && !seen.iter().any(|kept| kept == host) {
+                seen.push(host.to_owned());
+            }
+        }
+
+        seen
+    }
+
+    /// The same party reached at `host`, keeping the rest of the details.
+    pub fn at_host(&self, host: impl Into<String>) -> Self {
+        Self {
+            host: host.into(),
+            alternate_hosts: Vec::new(),
+            ..self.clone()
+        }
     }
 
     /// The clickable form: `syncparty://join/SP1.…`.
@@ -132,6 +171,7 @@ mod tests {
     fn sample() -> Invite {
         Invite {
             host: "movie-box.tail1a2b3.ts.net".to_owned(),
+            alternate_hosts: vec!["100.79.178.123".to_owned()],
             port: 8999,
             password: "swordfish".to_owned(),
             room: "MovieNight".to_owned(),
@@ -206,6 +246,7 @@ mod tests {
             p: 8999,
             pw: String::new(),
             r: "room".to_owned(),
+            a: Vec::new(),
         })
         .expect("encode");
         let token = format!("{TOKEN_PREFIX}{}", URL_SAFE_NO_PAD.encode(payload));
@@ -222,6 +263,7 @@ mod tests {
             p: 8999,
             pw: String::new(),
             r: "room".to_owned(),
+            a: Vec::new(),
         })
         .expect("encode");
         let token = format!("{TOKEN_PREFIX}{}", URL_SAFE_NO_PAD.encode(payload));
@@ -242,5 +284,67 @@ mod tests {
     #[test]
     fn formats_the_address_the_way_the_client_expects() {
         assert_eq!(sample().server_address(), "movie-box.tail1a2b3.ts.net:8999");
+    }
+
+    #[test]
+    fn alternate_addresses_survive_the_round_trip() {
+        let invite = Invite {
+            host: "100.127.167.56".to_owned(),
+            alternate_hosts: vec![
+                "100.79.178.123".to_owned(),
+                "movie-box.tail1a2b3.ts.net".to_owned(),
+            ],
+            ..sample()
+        };
+
+        assert_eq!(Invite::decode(&invite.encode()).expect("decode"), invite);
+    }
+
+    #[test]
+    fn candidates_put_the_primary_first_and_drop_duplicates() {
+        let invite = Invite {
+            host: "100.127.167.56".to_owned(),
+            alternate_hosts: vec![
+                "100.79.178.123".to_owned(),
+                // Repeated and blank entries are what a host with one
+                // address ends up producing; neither should be tried.
+                "100.127.167.56".to_owned(),
+                "  ".to_owned(),
+            ],
+            ..sample()
+        };
+
+        assert_eq!(
+            invite.candidates(),
+            vec!["100.127.167.56".to_owned(), "100.79.178.123".to_owned()]
+        );
+    }
+
+    #[test]
+    fn tokens_made_before_alternates_existed_still_decode() {
+        // A real token produced by the first release, which had no `a` field.
+        let legacy = "SP1.eyJ2IjoxLCJoIjoiMTAwLjEyNy4xNjcuNTYiLCJwIjo4OTk5LCJwdyI6IjdQWEpCQjZIWDQzaEoyYWpZWiIsInIiOiJNb3ZpZU5pZ2h0In0";
+
+        let invite = Invite::decode(legacy).expect("legacy tokens must keep working");
+
+        assert_eq!(invite.host, "100.127.167.56");
+        assert_eq!(invite.port, 8999);
+        assert_eq!(invite.room, "MovieNight");
+        assert!(invite.alternate_hosts.is_empty());
+        assert_eq!(invite.candidates(), vec!["100.127.167.56".to_owned()]);
+    }
+
+    #[test]
+    fn at_host_swaps_the_address_and_keeps_everything_else() {
+        let local = sample().at_host("100.79.178.123");
+
+        assert_eq!(local.host, "100.79.178.123");
+        assert_eq!(local.password, sample().password);
+        assert_eq!(local.room, sample().room);
+        assert_eq!(local.port, sample().port);
+        assert!(
+            local.alternate_hosts.is_empty(),
+            "a deliberately chosen address should not fall back to others"
+        );
     }
 }

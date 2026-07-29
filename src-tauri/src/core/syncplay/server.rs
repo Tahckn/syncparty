@@ -108,14 +108,27 @@ impl UvManagedServer {
     /// Deliberately not a check for the welcome banner: that string is
     /// translated, so matching on it breaks the moment the machine is not in
     /// English. A successful connection means the same thing in every locale.
-    async fn await_ready(&self, config: &ServerConfig) -> Result<()> {
+    ///
+    /// The child is checked alongside the socket, because a port that answers
+    /// is not proof that *our* server answered. A stale server left holding
+    /// the port — which happens, since a force-killed syncparty cannot take
+    /// its child down with it — would otherwise look like a clean start while
+    /// the real child had already exited with "address in use".
+    async fn await_ready(&self, config: &ServerConfig, child: &mut Child) -> Result<()> {
         let address = format!("{}:{}", config.bind_address, config.port);
         let deadline = tokio::time::Instant::now() + READY_TIMEOUT;
 
         while tokio::time::Instant::now() < deadline {
+            if let Ok(Some(status)) = child.try_wait() {
+                return Err(SyncPartyError::ServerStartFailed(format!(
+                    "the server stopped immediately ({status}) — {address} may already be in use"
+                )));
+            }
+
             if tokio::net::TcpStream::connect(&address).await.is_ok() {
                 return Ok(());
             }
+
             tokio::time::sleep(READY_POLL_INTERVAL).await;
         }
 
@@ -201,20 +214,28 @@ impl ServerController for UvManagedServer {
             // child dies on a UnicodeEncodeError when the console code page
             // cannot represent them.
             .env("PYTHONIOENCODING", "utf-8")
+            // Windows does not tear down children with their parent, so
+            // without this a normal shutdown can leave the server running and
+            // holding the port. It does not help if syncparty is force-killed
+            // — destructors do not run then — so an orphan is still possible.
+            .kill_on_drop(true)
             .spawn()
             .map_err(|error| SyncPartyError::ServerStartFailed(error.to_string()))?;
 
         self.pump_output(&mut child);
 
-        let port = config.port;
-        *running = Some(RunningServer { child, port });
-        drop(running);
-
-        // On failure the child is cleaned up rather than left half-started.
-        if let Err(error) = self.await_ready(config).await {
-            let _ = self.stop().await;
+        // Readiness is settled before the child is handed over, so a failed
+        // start leaves nothing behind for the next attempt to collide with.
+        if let Err(error) = self.await_ready(config, &mut child).await {
+            let _ = child.kill().await;
+            let _ = child.wait().await;
             return Err(error);
         }
+
+        *running = Some(RunningServer {
+            child,
+            port: config.port,
+        });
 
         Ok(())
     }
