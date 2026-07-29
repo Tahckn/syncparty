@@ -309,4 +309,19 @@ mod tests {
         assert!(message.contains("192.0.2.2"), "{message}");
         assert!(message.contains("8999"), "{message}");
     }
+    #[test]
+    fn finds_vlc_in_a_manually_selected_folder() {
+        let directory =
+            std::env::temp_dir().join(format!("syncparty-vlc-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(&directory).expect("directory");
+        let vlc = directory.join(if cfg!(windows) { "vlc.exe" } else { "vlc" });
+        std::fs::write(&vlc, b"").expect("vlc");
+
+        assert_eq!(
+            find_player(directory.to_str()),
+            Some(vlc),
+            "a VLC folder should satisfy the player requirement"
+        );
+    }
 }

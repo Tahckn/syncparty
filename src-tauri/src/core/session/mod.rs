@@ -292,7 +292,7 @@ impl PartySession {
         let nickname = self.settings.get().nickname;
         ClientLauncher::discover(&self.settings)?.join(invite, &nickname)?;
         self.secrets
-            .set(SecretKey::LastInvite, &serde_json::to_string(invite)?)
+            .set(SecretKey::LastInvite, &encode_last_invite(invite)?)
     }
 
     /// Reopens the last successfully launched guest session after an app restart.
@@ -319,6 +319,10 @@ impl PartySession {
 
 fn parse_last_invite(raw: &str) -> Option<Invite> {
     serde_json::from_str(raw).ok()
+}
+
+fn encode_last_invite(invite: &Invite) -> Result<String> {
+    Ok(serde_json::to_string(invite)?)
 }
 
 #[cfg(test)]
@@ -434,5 +438,20 @@ mod tests {
     #[test]
     fn ignores_a_corrupt_saved_invite() {
         assert!(parse_last_invite("not an invite").is_none());
+    }
+
+    #[test]
+    fn saved_invites_round_trip() {
+        let invite = Invite {
+            host: "movie-box.tail1a2b3.ts.net".to_owned(),
+            port: 8999,
+            password: "swordfish".to_owned(),
+            room: "MovieNight".to_owned(),
+        };
+
+        assert_eq!(
+            parse_last_invite(&encode_last_invite(&invite).expect("encode")),
+            Some(invite)
+        );
     }
 }
