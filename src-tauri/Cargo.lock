@@ -3992,7 +3992,7 @@ dependencies = [
 
 [[package]]
 name = "syncparty"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "async-trait",
  "base64 0.23.0",
