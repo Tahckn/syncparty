@@ -7,6 +7,7 @@ import { Badge, Button, Card, Dot } from "@/shared/ui";
 import type { StartupStep } from "@/shared/types/StartupStep";
 
 import { InviteCard } from "./InviteCard";
+import { LobbyPanel } from "./LobbyPanel";
 import { RoomPanel } from "./RoomPanel";
 
 const STEP_LABELS: Record<StartupStep, MessageKey> = {
@@ -115,6 +116,13 @@ export function HostScreen() {
             </p>
           )}
           <InviteCard hosting={session} />
+          <LobbyPanel
+            snapshot={room}
+            monitorAttached={session.monitorAttached}
+            opening={joinState === "opening"}
+            opened={joinState === "opened"}
+            onStart={join}
+          />
           <RoomPanel snapshot={room} monitorAttached={session.monitorAttached} />
         </>
       )}
