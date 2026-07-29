@@ -58,6 +58,27 @@ pnpm build   # runs tsc, so this is the frontend type check too
 
 CI runs all of the above on Windows and macOS.
 
+## Cutting a release
+
+Keep the version bump in the same pull request as the release changes. Update
+the version in `package.json`, `src-tauri/Cargo.toml`, and
+`src-tauri/tauri.conf.json` before that pull request's final CI run. After it is
+green and merged, create and push the matching tag:
+
+```bash
+git switch main
+git pull --ff-only
+git tag v0.4.0
+git push origin v0.4.0
+```
+
+The protected branch has already passed the required Windows, macOS, and
+frontend checks, so merging does not run the same CI suite again. The tag starts
+one release workflow: it first verifies all version declarations, builds the
+three native packages in parallel, and publishes the draft only after every
+package is ready. Failed release jobs can be re-run from GitHub Actions; do not
+create a second tag for the same version.
+
 ## How the code is arranged
 
 The rule that matters: **`core` must not depend on Tauri.**
