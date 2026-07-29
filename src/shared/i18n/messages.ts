@@ -90,6 +90,10 @@ export const en = {
   "host.room.mismatch": "People have different files open",
   "host.room.mismatchDetail":
     "Playback will not stay in sync until everyone opens the same file.",
+  "host.room.durationMatch": "The files look compatible",
+  "host.room.durationMatchDetail":
+    "Their names differ, but their durations are close enough for synchronized playback.",
+  "host.room.waitingForFiles": "Waiting for everyone to open their film.",
   "host.lobby.title": "Movie night lobby",
   "host.lobby.ready": "Ready to roll",
   "host.lobby.waiting": "Getting ready",
@@ -246,6 +250,10 @@ export const tr: Messages = {
   "host.room.mismatch": "Farklı dosyalar açık",
   "host.room.mismatchDetail":
     "Herkes aynı dosyayı açmadan oynatma senkron kalmaz.",
+  "host.room.durationMatch": "Dosyalar uyumlu görünüyor",
+  "host.room.durationMatchDetail":
+    "Adları farklı ancak süreleri senkron oynatma için yeterince yakın.",
+  "host.room.waitingForFiles": "Herkesin film dosyasını açması bekleniyor.",
   "host.lobby.title": "Film gecesi lobisi",
   "host.lobby.ready": "Başlamaya hazır",
   "host.lobby.waiting": "Hazırlanıyor",

@@ -31,14 +31,17 @@ export function LobbyPanel({
   );
   const readyCount = people.filter((person) => person.isReady).length;
   const fileCount = people.filter((person) => person.file != null).length;
-  const sameFile = snapshot?.rooms.every(
-    (room) => room.everyoneOnTheSameFile,
-  ) ?? false;
+  const filesCompatible =
+    snapshot?.rooms.every(
+      (room) =>
+        room.fileCompatibility === "exact" ||
+        room.fileCompatibility === "durationMatch",
+    ) ?? false;
   const everyoneReady =
     people.length > 0 &&
     readyCount === people.length &&
     fileCount === people.length &&
-    sameFile;
+    filesCompatible;
 
   useEffect(() => {
     if (countdown == null) return;
@@ -79,7 +82,7 @@ export function LobbyPanel({
               ? t("host.lobby.empty")
               : fileCount < people.length
                 ? t("host.lobby.filesWaiting")
-                : !sameFile
+                : !filesCompatible
                   ? t("host.lobby.filesMismatch")
                   : everyoneReady
                     ? t("host.lobby.everyoneReady")

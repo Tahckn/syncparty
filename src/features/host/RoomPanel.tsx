@@ -56,7 +56,26 @@ export function RoomPanel({
             </Badge>
           }
         >
-          {!room.everyoneOnTheSameFile && (
+          {room.fileCompatibility === "durationMatch" && (
+            <div className="mb-3 rounded-lg border border-good/35 bg-good/10 p-3">
+              <p className="text-sm font-medium text-good">
+                {t("host.room.durationMatch")}
+              </p>
+              <p className="mt-0.5 text-xs text-ink-muted">
+                {t("host.room.durationMatchDetail")}
+              </p>
+            </div>
+          )}
+
+          {room.fileCompatibility === "waiting" && (
+            <div className="mb-3 rounded-lg border border-line/70 bg-surface-raised/35 p-3">
+              <p className="text-sm text-ink-muted">
+                {t("host.room.waitingForFiles")}
+              </p>
+            </div>
+          )}
+
+          {room.fileCompatibility === "mismatch" && (
             <div className="mb-3 rounded-lg border border-warn/40 bg-warn/10 p-3">
               <p className="text-sm font-medium text-warn">
                 {t("host.room.mismatch")}
