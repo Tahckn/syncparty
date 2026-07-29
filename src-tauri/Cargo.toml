@@ -1,6 +1,6 @@
 [package]
 name = "syncparty"
-version = "0.2.0"
+version = "0.2.1"
 description = "Synchronised movie nights over Tailscale"
 authors = ["Taha Çeken"]
 edition = "2021"
