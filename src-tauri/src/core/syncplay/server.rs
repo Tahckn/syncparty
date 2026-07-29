@@ -1,6 +1,9 @@
 //! Starting and stopping the Syncplay server process.
 
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::net::Ipv4Addr;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -128,24 +131,46 @@ impl UvManagedServer {
         if let Some(parent) = log_path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
+        // Each server run gets one fresh diagnostic log; stale output is more
+        // misleading than useful when troubleshooting a new party.
+        let _ = std::fs::File::create(&log_path);
 
         if let Some(stdout) = child.stdout.take() {
-            spawn_reader(BufReader::new(stdout), Arc::clone(&self.bus), false);
+            spawn_reader(
+                BufReader::new(stdout),
+                Arc::clone(&self.bus),
+                false,
+                log_path.clone(),
+            );
         }
 
         if let Some(stderr) = child.stderr.take() {
-            spawn_reader(BufReader::new(stderr), Arc::clone(&self.bus), true);
+            spawn_reader(
+                BufReader::new(stderr),
+                Arc::clone(&self.bus),
+                true,
+                log_path,
+            );
         }
     }
 }
 
-fn spawn_reader<R>(reader: BufReader<R>, bus: Arc<dyn EventBus>, is_error: bool)
+fn spawn_reader<R>(reader: BufReader<R>, bus: Arc<dyn EventBus>, is_error: bool, log_path: PathBuf)
 where
     R: tokio::io::AsyncRead + Unpin + Send + 'static,
 {
     tokio::spawn(async move {
         let mut lines = reader.lines();
+        let mut log = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(log_path)
+            .ok();
         while let Ok(Some(line)) = lines.next_line().await {
+            if let Some(log) = &mut log {
+                let stream = if is_error { "stderr" } else { "stdout" };
+                let _ = writeln!(log, "[{stream}] {line}");
+            }
             bus.publish(AppEvent::ServerLog { line, is_error });
         }
     });
