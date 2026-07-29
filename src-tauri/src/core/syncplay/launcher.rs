@@ -29,6 +29,18 @@ const MPV_FALLBACKS: &[&str] = &[
     r"C:\Program Files\mpv.net\mpvnet.exe",
 ];
 
+#[cfg(windows)]
+const VLC_FALLBACKS: &[&str] = &[
+    r"C:\Program Files\VideoLAN\VLC\vlc.exe",
+    r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe",
+];
+
+#[cfg(target_os = "macos")]
+const VLC_FALLBACKS: &[&str] = &["/Applications/VLC.app/Contents/MacOS/VLC"];
+
+#[cfg(not(any(windows, target_os = "macos")))]
+const VLC_FALLBACKS: &[&str] = &["/usr/bin/vlc", "/usr/local/bin/vlc"];
+
 #[cfg(target_os = "macos")]
 const MPV_FALLBACKS: &[&str] = &[
     "/Applications/mpv.app/Contents/MacOS/mpv",
@@ -53,11 +65,13 @@ pub fn find_client(manual: Option<&str>) -> Option<PathBuf> {
         .or_else(|| process::locate("syncplay", CLIENT_FALLBACKS))
 }
 
-/// Locates mpv, the player Syncplay drives.
-pub fn find_mpv(manual: Option<&str>) -> Option<PathBuf> {
+/// Locates a player Syncplay can drive, preferring mpv when both are present.
+pub fn find_player(manual: Option<&str>) -> Option<PathBuf> {
     manual
         .and_then(|raw| process::resolve_manual(raw, "mpv"))
+        .or_else(|| manual.and_then(|raw| process::resolve_manual(raw, "vlc")))
         .or_else(|| process::locate("mpv", MPV_FALLBACKS))
+        .or_else(|| process::locate("vlc", VLC_FALLBACKS))
 }
 
 pub struct ClientLauncher {
@@ -72,12 +86,12 @@ impl ClientLauncher {
     /// reported as ready is one this can actually launch.
     pub fn discover(settings: &ConfigStore) -> Result<Self> {
         let client_override = settings.executable_override(SYNCPLAY_CLIENT_KEY);
-        let mpv_override = settings.executable_override(MPV_KEY);
+        let player_override = settings.executable_override(MPV_KEY);
 
         Ok(Self {
             client: find_client(client_override.as_deref())
                 .ok_or_else(|| SyncPartyError::DependencyMissing("Syncplay".to_owned()))?,
-            player: find_mpv(mpv_override.as_deref()),
+            player: find_player(player_override.as_deref()),
         })
     }
 
