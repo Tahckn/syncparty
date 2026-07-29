@@ -60,6 +60,12 @@ All traffic rides the existing WireGuard tunnel.
 
 A few decisions worth knowing about:
 
+- **An invite carries every address that reaches the server.** No single one
+  works for everybody: a node shared into somebody else's tailnet is reached on
+  a masqueraded address that means nothing anywhere else — including on the
+  host's own machine — while peers inside the host's tailnet need its real
+  address. The joining side tries each candidate and uses whichever answers,
+  so the host never has to know who is on which tailnet.
 - **Portable builds can be pointed at by hand.** Detection covers installers
   and `PATH`, which misses an mpv or Syncplay zip extracted to some folder.
   Rather than guessing at where people keep those, the setup screen has a

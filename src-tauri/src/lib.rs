@@ -63,6 +63,7 @@ pub fn run() {
             commands::session_state,
             commands::decode_invite,
             commands::join_party,
+            commands::join_hosted_party,
             commands::discord_status,
             commands::set_discord_webhook,
             commands::clear_discord_webhook,

@@ -118,8 +118,17 @@ pub fn decode_invite(text: String) -> Result<Invite> {
 }
 
 #[tauri::command]
-pub fn join_party(state: State<'_, AppState>, invite: Invite) -> Result<()> {
-    state.session.join(&invite)
+pub async fn join_party(state: State<'_, AppState>, invite: Invite) -> Result<()> {
+    state.session.join(&invite).await
+}
+
+/// Opens the host's own Syncplay client on the party they are running.
+///
+/// Separate from `join_party` because the host has to connect on the address
+/// the server is bound to, not the one handed out to guests.
+#[tauri::command]
+pub async fn join_hosted_party(state: State<'_, AppState>) -> Result<()> {
+    state.session.join_as_host().await
 }
 
 #[tauri::command]

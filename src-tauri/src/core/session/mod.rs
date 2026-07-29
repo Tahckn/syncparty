@@ -59,8 +59,11 @@ pub struct HostingInfo {
     pub invite: Invite,
     pub invite_code: String,
     pub deep_link: String,
-    /// This machine's own tailnet address, shown for troubleshooting. May
-    /// differ from `invite.host` when the node is shared into another tailnet.
+    /// This machine's own tailnet address — the one the server is bound to.
+    ///
+    /// Not decoration: it is the address the host's own Syncplay has to use.
+    /// `invite.host` may be a masqueraded address that only resolves inside
+    /// the tailnet this node was shared into, which does not include here.
     pub tailscale_address: String,
     pub server: ServerState,
     pub monitor_attached: bool,
@@ -174,8 +177,18 @@ impl PartySession {
             .await?
             .unwrap_or_else(|| address.to_string());
 
+        // Every other address that reaches this server goes along for the
+        // ride, because which one works depends on which tailnet the guest is
+        // on — something the host has no way to know. `candidates` drops the
+        // duplicates this produces when a host has only one address.
+        let mut alternates = vec![address.to_string()];
+        if let Some(dns_name) = tailscale.status().await.ok().and_then(|s| s.dns_name) {
+            alternates.push(dns_name);
+        }
+
         let invite = Invite {
             host: advertised,
+            alternate_hosts: alternates,
             port: settings.port,
             password: password.clone(),
             room: settings.room.clone(),
@@ -275,9 +288,26 @@ impl PartySession {
     }
 
     /// Opens the Syncplay client on an invite. Used by the guest half.
-    pub fn join(&self, invite: &Invite) -> Result<()> {
+    pub async fn join(&self, invite: &Invite) -> Result<()> {
         let nickname = self.settings.get().nickname;
-        ClientLauncher::discover(&self.settings)?.join(invite, &nickname)
+        ClientLauncher::discover(&self.settings)?
+            .join(invite, &nickname)
+            .await
+    }
+
+    /// Opens the host's own Syncplay client on the party it is running.
+    ///
+    /// Pinned to the bound address rather than the invite's primary: the host
+    /// is not on the tailnet a masqueraded address belongs to, so sending
+    /// their client there would leave it waiting on a connection that can
+    /// never open.
+    pub async fn join_as_host(&self) -> Result<()> {
+        let SessionState::Hosting(info) = self.state().await else {
+            return Err(SyncPartyError::ServerNotRunning);
+        };
+
+        self.join(&info.invite.at_host(&info.tailscale_address))
+            .await
     }
 }
 

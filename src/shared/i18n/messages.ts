@@ -64,6 +64,10 @@ export const en = {
   "host.step.startingServer": "Starting the Syncplay server…",
   "host.step.attachingMonitor": "Attaching the room panel…",
   "host.live": "Live",
+  "host.join": "Join the film",
+  "host.joining": "Opening Syncplay…",
+  "host.joined":
+    "Syncplay is opening on this machine. Open your copy of the file when it appears.",
   "host.invite.title": "Invite",
   "host.invite.link": "Join link",
   "host.invite.code": "Invite code",
@@ -192,6 +196,10 @@ export const tr: Messages = {
   "host.step.startingServer": "Syncplay sunucusu başlatılıyor…",
   "host.step.attachingMonitor": "Oda paneli bağlanıyor…",
   "host.live": "Yayında",
+  "host.join": "Filme katıl",
+  "host.joining": "Syncplay açılıyor…",
+  "host.joined":
+    "Syncplay bu bilgisayarda açılıyor. Açıldığında kendi dosyanı seç.",
   "host.invite.title": "Davet",
   "host.invite.link": "Katılma bağlantısı",
   "host.invite.code": "Davet kodu",

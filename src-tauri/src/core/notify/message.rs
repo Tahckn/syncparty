@@ -76,6 +76,7 @@ mod tests {
     fn sample() -> Invite {
         Invite {
             host: "movie-box.tail1a2b3.ts.net".to_owned(),
+            alternate_hosts: vec!["100.79.178.123".to_owned()],
             port: 8999,
             password: "swordfish".to_owned(),
             room: "MovieNight".to_owned(),

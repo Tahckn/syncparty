@@ -5,6 +5,17 @@
  */
 export type Invite = { 
 /**
- * Tailscale address or MagicDNS name of the host.
+ * The address most guests should use.
  */
-host: string, port: number, password: string, room: string, };
+host: string, 
+/**
+ * Other addresses that reach the same server.
+ *
+ * No single address suits everyone. A node shared into somebody else's
+ * tailnet is reached on a masqueraded address that means nothing anywhere
+ * else — including on the host's own machine — while peers inside the
+ * host's tailnet need its real address or MagicDNS name. Carrying every
+ * candidate lets the joining side find out which one actually answers
+ * instead of the host having to know who is on which tailnet.
+ */
+alternateHosts: Array<string>, port: number, password: string, room: string, };
