@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useTranslate } from "@/shared/i18n";
 import { Badge, Button, Card, Dot } from "@/shared/ui";
 import type { RoomSnapshot } from "@/shared/types/RoomSnapshot";
 
-const MONITOR_NAME = "syncparty-panel";
+import { getLobbyState } from "./lobbyState";
 
 export function LobbyPanel({
   snapshot,
@@ -22,26 +22,8 @@ export function LobbyPanel({
   const t = useTranslate();
   const [countdown, setCountdown] = useState<number | null>(null);
 
-  const people = useMemo(
-    () =>
-      snapshot?.rooms.flatMap((room) => room.watchers).filter(
-        (watcher) => watcher.name !== MONITOR_NAME,
-      ) ?? [],
-    [snapshot],
-  );
-  const readyCount = people.filter((person) => person.isReady).length;
-  const fileCount = people.filter((person) => person.file != null).length;
-  const filesCompatible =
-    snapshot?.rooms.every(
-      (room) =>
-        room.fileCompatibility === "exact" ||
-        room.fileCompatibility === "durationMatch",
-    ) ?? false;
-  const everyoneReady =
-    people.length > 0 &&
-    readyCount === people.length &&
-    fileCount === people.length &&
-    filesCompatible;
+  const { people, readyCount, fileCount, filesCompatible, everyoneReady } =
+    getLobbyState(snapshot);
 
   useEffect(() => {
     if (countdown == null) return;

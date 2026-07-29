@@ -418,6 +418,34 @@ mod tests {
     }
 
     #[test]
+    fn different_names_are_compatible_when_durations_match() {
+        let rooms = list_from(
+            r#"{"List":{"MovieNight":{
+                "ahmet":{"file":{"name":"Film.1080p.mkv","duration":7200.0},"isReady":true,"controller":false},
+                "mehmet":{"file":{"name":"Film.4k.webm","duration":7201.5},"isReady":true,"controller":false}
+            }}}"#,
+        );
+
+        let room = &RoomSnapshot::from_list(&rooms, MONITOR_NICKNAME).rooms[0];
+        assert_eq!(room.file_compatibility, FileCompatibility::DurationMatch);
+        assert!(room.everyone_on_the_same_file);
+    }
+
+    #[test]
+    fn durations_outside_the_tolerance_are_a_mismatch() {
+        let rooms = list_from(
+            r#"{"List":{"MovieNight":{
+                "ahmet":{"file":{"name":"Film.mkv","duration":7200.0},"isReady":true,"controller":false},
+                "mehmet":{"file":{"name":"Wrong.mkv","duration":7210.0},"isReady":true,"controller":false}
+            }}}"#,
+        );
+
+        let room = &RoomSnapshot::from_list(&rooms, MONITOR_NICKNAME).rooms[0];
+        assert_eq!(room.file_compatibility, FileCompatibility::Mismatch);
+        assert!(!room.everyone_on_the_same_file);
+    }
+
+    #[test]
     fn somebody_who_has_opened_nothing_yet_is_not_a_mismatch() {
         let rooms = list_from(
             r#"{"List":{"MovieNight":{
@@ -427,6 +455,7 @@ mod tests {
         );
 
         let room = &RoomSnapshot::from_list(&rooms, MONITOR_NICKNAME).rooms[0];
+        assert_eq!(room.file_compatibility, FileCompatibility::Waiting);
         assert!(room.everyone_on_the_same_file);
         assert!(room.watchers.iter().any(|watcher| watcher.file.is_none()));
     }
