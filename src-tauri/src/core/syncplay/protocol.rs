@@ -110,6 +110,9 @@ pub enum ClientMessage {
     PingReply {
         latency_calculation: Option<f64>,
         client_latency_calculation: f64,
+        /// Acknowledges the server's forced state sequence without echoing
+        /// any playback data back into the room.
+        server_ignoring_on_the_fly: Option<u64>,
     },
 }
 
@@ -122,6 +125,7 @@ impl ClientMessage {
             Self::PingReply {
                 latency_calculation,
                 client_latency_calculation,
+                server_ignoring_on_the_fly,
             } => {
                 let mut ping = serde_json::Map::new();
                 if let Some(value) = latency_calculation {
@@ -133,7 +137,16 @@ impl ClientMessage {
                 );
                 ping.insert("clientRtt".to_owned(), 0.into());
 
-                serde_json::json!({ "State": { "ping": ping } })
+                let mut state = serde_json::Map::new();
+                state.insert("ping".to_owned(), ping.into());
+                if let Some(sequence) = server_ignoring_on_the_fly {
+                    state.insert(
+                        "ignoringOnTheFly".to_owned(),
+                        serde_json::json!({ "server": sequence }),
+                    );
+                }
+
+                serde_json::json!({ "State": state })
             }
         };
 
@@ -209,6 +222,7 @@ pub enum ServerMessage {
     Set(serde_json::Map<String, serde_json::Value>),
     State {
         latency_calculation: Option<f64>,
+        server_ignoring_on_the_fly: Option<u64>,
     },
     Error {
         message: String,
@@ -248,6 +262,10 @@ impl ServerMessage {
                     .get("ping")
                     .and_then(|ping| ping.get("latencyCalculation"))
                     .and_then(serde_json::Value::as_f64),
+                server_ignoring_on_the_fly: payload
+                    .get("ignoringOnTheFly")
+                    .and_then(|ignore| ignore.get("server"))
+                    .and_then(serde_json::Value::as_u64),
             },
             "Error" => Self::Error {
                 message: payload
@@ -323,6 +341,7 @@ mod tests {
         let line = ClientMessage::PingReply {
             latency_calculation: Some(12.5),
             client_latency_calculation: 99.0,
+            server_ignoring_on_the_fly: Some(3),
         }
         .to_line()
         .expect("line");
@@ -332,6 +351,7 @@ mod tests {
             "the monitor must not be able to pause or seek the room"
         );
         assert!(line.contains("latencyCalculation"));
+        assert!(line.contains(r#""ignoringOnTheFly":{"server":3}"#));
     }
 
     #[test]
@@ -380,14 +400,15 @@ mod tests {
     #[test]
     fn reads_the_ping_out_of_a_state_message() {
         let message = ServerMessage::from_line(
-            r#"{"State":{"ping":{"latencyCalculation":1234.5,"serverRtt":0},"playstate":{"position":10.0,"paused":true}}}"#,
+            r#"{"State":{"ping":{"latencyCalculation":1234.5,"serverRtt":0},"playstate":{"position":10.0,"paused":true},"ignoringOnTheFly":{"server":4}}}"#,
         )
         .expect("parse");
 
         assert!(matches!(
             message,
             ServerMessage::State {
-                latency_calculation: Some(value)
+                latency_calculation: Some(value),
+                server_ignoring_on_the_fly: Some(4),
             } if (value - 1234.5).abs() < f64::EPSILON
         ));
     }

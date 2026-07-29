@@ -116,13 +116,7 @@ export function HostScreen() {
             </p>
           )}
           <InviteCard hosting={session} />
-          <LobbyPanel
-            snapshot={room}
-            monitorAttached={session.monitorAttached}
-            opening={joinState === "opening"}
-            opened={joinState === "opened"}
-            onStart={join}
-          />
+          {session.monitorAttached && <LobbyPanel snapshot={room} />}
           <RoomPanel snapshot={room} monitorAttached={session.monitorAttached} />
         </>
       )}
