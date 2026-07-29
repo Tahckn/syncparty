@@ -61,6 +61,7 @@ pub fn run() {
             commands::get_settings,
             commands::update_settings,
             commands::run_preflight,
+            commands::run_diagnostics,
             commands::install_dependency,
             commands::set_dependency_path,
             commands::start_hosting,

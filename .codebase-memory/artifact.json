@@ -1,0 +1,11 @@
+{
+    "schema_version": 2,
+    "commit": "640e812249e24c0075c5fb0c317ebd8be4723863",
+    "indexed_at": "2026-07-29T22:21:28Z",
+    "project": "syncparty",
+    "nodes": 1095,
+    "edges": 3431,
+    "original_size": 4718592,
+    "compressed_size": 937061,
+    "compression_level": 3
+}

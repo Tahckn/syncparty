@@ -57,7 +57,7 @@ function Shell() {
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
       <Header
         mode={settings?.mode ?? null}
         settingsOpen={showSettings}
@@ -70,7 +70,7 @@ function Shell() {
       <FailureBanner />
       <UpdateBanner />
 
-      <main className="min-h-0 flex-1 overflow-y-auto">
+      <main className="min-h-0 flex-1 overflow-y-auto scroll-smooth">
         {!settings ? (
           <p className="p-10 text-center text-sm text-ink-faint">
             {t("common.loading")}
@@ -106,15 +106,14 @@ function Header({
   const t = useTranslate();
 
   return (
-    <header className="flex shrink-0 items-center justify-between border-b border-line px-5 py-3">
-      <div className="flex items-center gap-2.5">
-        <span
-          aria-hidden
-          className="grid size-6 place-items-center rounded-md bg-accent text-xs font-bold text-accent-ink"
-        >
-          s
+    <header className="z-10 flex shrink-0 items-center justify-between border-b border-line/60 bg-canvas/55 px-6 py-4 backdrop-blur-2xl">
+      <div className="flex items-center gap-3">
+        <span aria-hidden className="relative grid size-9 place-items-center overflow-hidden rounded-xl bg-accent text-accent-ink shadow-[0_8px_28px_oklch(0.65_0.18_42/0.25)]">
+          <svg viewBox="0 0 24 24" className="size-5 fill-current" aria-hidden>
+            <path d="M8.2 6.1a1 1 0 0 1 1.52-.85l8.25 5.3a1 1 0 0 1 0 1.7l-8.25 5.3a1 1 0 0 1-1.52-.84V6.1Z" />
+          </svg>
         </span>
-        <span className="text-sm font-semibold tracking-tight text-ink">
+        <span className="text-[15px] font-bold tracking-[-0.02em] text-ink">
           {t("appName")}
         </span>
         {mode && (
@@ -124,7 +123,11 @@ function Header({
         )}
       </div>
 
-      <Button variant="ghost" onClick={onToggleSettings}>
+      <Button variant="ghost" onClick={onToggleSettings} aria-pressed={settingsOpen}>
+        <svg viewBox="0 0 24 24" className="size-4 fill-none stroke-current" strokeWidth="1.8" aria-hidden>
+          <path d="M12 15.25A3.25 3.25 0 1 0 12 8.75a3.25 3.25 0 0 0 0 6.5Z" />
+          <path d="M19.1 13.2a7.8 7.8 0 0 0 0-2.4l2-1.55-2-3.46-2.48 1a8.5 8.5 0 0 0-2.08-1.2L14.2 3h-4l-.34 2.6a8.5 8.5 0 0 0-2.08 1.2l-2.48-1-2 3.46 2 1.55a7.8 7.8 0 0 0 0 2.4l-2 1.55 2 3.46 2.48-1a8.5 8.5 0 0 0 2.08 1.2l.34 2.6h4l.34-2.6a8.5 8.5 0 0 0 2.08-1.2l2.48 1 2-3.46-2-1.55Z" />
+        </svg>
         {settingsOpen ? t("common.close") : t("common.settings")}
       </Button>
     </header>

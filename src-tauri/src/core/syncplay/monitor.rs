@@ -46,10 +46,24 @@ pub struct RoomSnapshot {
 pub struct RoomView {
     pub name: String,
     pub watchers: Vec<WatcherView>,
-    /// False when two people have different files open — the single most
-    /// common reason a movie night desyncs, and something the server already
-    /// knows but no Syncplay UI puts in front of the host.
+    /// Backward-compatible summary for older clients. False only when the
+    /// files are known to be incompatible; a room still loading is not
+    /// reported as a mismatch.
     pub everyone_on_the_same_file: bool,
+    /// A more useful compatibility signal than filenames alone. Different
+    /// releases of the same film often have different names, while their
+    /// durations still reveal that they are suitable for synchronized play.
+    pub file_compatibility: FileCompatibility,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[ts(export, rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
+pub enum FileCompatibility {
+    Waiting,
+    Exact,
+    DurationMatch,
+    Mismatch,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
@@ -119,24 +133,56 @@ impl RoomView {
 
         watchers.sort_by(|a, b| a.name.cmp(&b.name));
 
+        let file_compatibility = file_compatibility(&watchers);
+
         Self {
-            everyone_on_the_same_file: everyone_on_the_same_file(&watchers),
+            everyone_on_the_same_file: file_compatibility != FileCompatibility::Mismatch,
+            file_compatibility,
             name: name.to_owned(),
             watchers,
         }
     }
 }
 
-/// True when nobody can be out of sync: either fewer than two people have a
-/// file open, or all the open files share a name.
-fn everyone_on_the_same_file(watchers: &[WatcherView]) -> bool {
-    let mut names = watchers.iter().filter_map(|watcher| watcher.file.as_ref());
+const DURATION_TOLERANCE_SECONDS: f64 = 2.0;
 
-    let Some(first) = names.next() else {
-        return true;
+fn file_compatibility(watchers: &[WatcherView]) -> FileCompatibility {
+    if watchers.is_empty() || watchers.iter().any(|watcher| watcher.file.is_none()) {
+        return FileCompatibility::Waiting;
+    }
+
+    let files: Vec<&WatchedFile> = watchers
+        .iter()
+        .filter_map(|watcher| watcher.file.as_ref())
+        .collect();
+
+    let Some(first) = files.first() else {
+        return FileCompatibility::Waiting;
     };
 
-    names.all(|file| file.name == first.name)
+    if files
+        .iter()
+        .all(|file| file.name.eq_ignore_ascii_case(&first.name))
+    {
+        return FileCompatibility::Exact;
+    }
+
+    let durations: Option<Vec<f64>> = files.iter().map(|file| file.duration_seconds).collect();
+    let Some(durations) = durations else {
+        return FileCompatibility::Mismatch;
+    };
+
+    let shortest = durations.iter().copied().fold(f64::INFINITY, f64::min);
+    let longest = durations.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+
+    if shortest.is_finite()
+        && longest.is_finite()
+        && longest - shortest <= DURATION_TOLERANCE_SECONDS
+    {
+        FileCompatibility::DurationMatch
+    } else {
+        FileCompatibility::Mismatch
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -372,6 +418,34 @@ mod tests {
     }
 
     #[test]
+    fn different_names_are_compatible_when_durations_match() {
+        let rooms = list_from(
+            r#"{"List":{"MovieNight":{
+                "ahmet":{"file":{"name":"Film.1080p.mkv","duration":7200.0},"isReady":true,"controller":false},
+                "mehmet":{"file":{"name":"Film.4k.webm","duration":7201.5},"isReady":true,"controller":false}
+            }}}"#,
+        );
+
+        let room = &RoomSnapshot::from_list(&rooms, MONITOR_NICKNAME).rooms[0];
+        assert_eq!(room.file_compatibility, FileCompatibility::DurationMatch);
+        assert!(room.everyone_on_the_same_file);
+    }
+
+    #[test]
+    fn durations_outside_the_tolerance_are_a_mismatch() {
+        let rooms = list_from(
+            r#"{"List":{"MovieNight":{
+                "ahmet":{"file":{"name":"Film.mkv","duration":7200.0},"isReady":true,"controller":false},
+                "mehmet":{"file":{"name":"Wrong.mkv","duration":7210.0},"isReady":true,"controller":false}
+            }}}"#,
+        );
+
+        let room = &RoomSnapshot::from_list(&rooms, MONITOR_NICKNAME).rooms[0];
+        assert_eq!(room.file_compatibility, FileCompatibility::Mismatch);
+        assert!(!room.everyone_on_the_same_file);
+    }
+
+    #[test]
     fn somebody_who_has_opened_nothing_yet_is_not_a_mismatch() {
         let rooms = list_from(
             r#"{"List":{"MovieNight":{
@@ -381,6 +455,7 @@ mod tests {
         );
 
         let room = &RoomSnapshot::from_list(&rooms, MONITOR_NICKNAME).rooms[0];
+        assert_eq!(room.file_compatibility, FileCompatibility::Waiting);
         assert!(room.everyone_on_the_same_file);
         assert!(room.watchers.iter().any(|watcher| watcher.file.is_none()));
     }

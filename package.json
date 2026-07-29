@@ -1,12 +1,13 @@
 {
   "name": "syncparty",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.3.0",
   "type": "module",
   "packageManager": "pnpm@10.28.2",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "test": "vitest run",
     "preview": "vite preview",
     "tauri": "tauri"
   },
@@ -30,6 +31,7 @@
     "@vitejs/plugin-react": "^4.6.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "vitest": "^3.2.7"
   }
 }

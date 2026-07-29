@@ -1,27 +1,26 @@
 @import "tailwindcss";
 
-/* Dark only, on purpose: this is an app you open with the lights off, and a
-   single palette keeps the surface area small. */
+/* A low-glare cinema palette: cool midnight surfaces with a warm projector
+   accent. The contrast stays high without turning the app into pure black. */
 @theme {
-  --color-canvas: oklch(0.17 0.012 275);
-  --color-surface: oklch(0.21 0.014 275);
-  --color-surface-raised: oklch(0.25 0.016 275);
-  --color-line: oklch(0.31 0.018 275);
+  --color-canvas: oklch(0.145 0.028 274);
+  --color-surface: oklch(0.19 0.032 274);
+  --color-surface-raised: oklch(0.235 0.036 272);
+  --color-line: oklch(0.34 0.04 272);
 
-  --color-ink: oklch(0.95 0.005 275);
-  --color-ink-muted: oklch(0.71 0.012 275);
-  --color-ink-faint: oklch(0.56 0.014 275);
+  --color-ink: oklch(0.965 0.01 275);
+  --color-ink-muted: oklch(0.76 0.022 273);
+  --color-ink-faint: oklch(0.59 0.028 273);
 
-  /* Warm, like a projector lamp. */
-  --color-accent: oklch(0.79 0.15 68);
-  --color-accent-strong: oklch(0.72 0.16 62);
-  --color-accent-ink: oklch(0.2 0.03 68);
+  --color-accent: oklch(0.78 0.16 48);
+  --color-accent-strong: oklch(0.72 0.18 42);
+  --color-accent-ink: oklch(0.18 0.035 42);
 
-  --color-good: oklch(0.76 0.14 158);
-  --color-warn: oklch(0.8 0.14 82);
-  --color-bad: oklch(0.68 0.18 22);
+  --color-good: oklch(0.78 0.14 160);
+  --color-warn: oklch(0.83 0.14 82);
+  --color-bad: oklch(0.72 0.18 24);
 
-  --radius-panel: 0.875rem;
+  --radius-panel: 1.125rem;
 }
 
 html,
@@ -44,6 +43,26 @@ body {
   user-select: none;
   cursor: default;
   overflow: hidden;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  background:
+    radial-gradient(circle at 14% -8%, oklch(0.38 0.11 292 / 0.34), transparent 34rem),
+    radial-gradient(circle at 92% 12%, oklch(0.48 0.12 43 / 0.16), transparent 28rem),
+    linear-gradient(160deg, oklch(0.165 0.035 280), var(--color-canvas) 58%);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Anything the user might genuinely want to copy opts back in. */
@@ -71,5 +90,10 @@ body {
 
 :focus-visible {
   outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+  outline-offset: 3px;
+}
+
+::selection {
+  background: oklch(0.78 0.16 48 / 0.32);
+  color: var(--color-ink);
 }

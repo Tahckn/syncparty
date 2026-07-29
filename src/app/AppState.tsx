@@ -81,6 +81,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     switch (event.kind) {
       case "sessionChanged":
         setSession(event.state);
+        if (event.state.phase === "starting") setServerLog([]);
         // A party that has stopped has no room to show.
         if (event.state.phase === "idle") setRoom(null);
         break;
