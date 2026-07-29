@@ -122,6 +122,13 @@ src-tauri/
 `core` never imports from `ipc`, which is what lets the whole of it run under
 `cargo test` without a webview.
 
+## Contributing
+
+Issues and pull requests are welcome — you do not need to be a collaborator,
+forking and opening a PR against `main` is enough. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the fork/branch/PR workflow, what CI
+checks before a PR can merge, and how the code is arranged.
+
 ## Licence
 
 MIT — see [LICENSE](LICENSE).

@@ -2,6 +2,36 @@
 
 Thanks for taking a look. Issues and pull requests are both welcome.
 
+## Fork and pull request workflow
+
+You do not need to be added as a collaborator to contribute — fork the repo
+and open a pull request against `main`:
+
+```bash
+gh repo fork Tahckn/syncparty --clone
+cd syncparty
+git checkout -b my-change
+# ... make your change ...
+git push -u origin my-change
+gh pr create --fill
+```
+
+(No `gh`? Fork from the GitHub UI, `git clone` your fork, and open the PR
+from there — same result.)
+
+A few things that trip people up the first time:
+
+- **CI does not run automatically on a first-time contributor's PR.** GitHub
+  holds fork-originated workflow runs for approval until a maintainer clicks
+  "Approve and run" on the Actions tab. This is a GitHub security default, not
+  something specific to this repo, and it is expected — ping the PR if it has
+  been a while.
+- **A PR cannot merge until CI is green.** `main` requires the Backend
+  (Windows), Backend (macOS) and Frontend checks to pass before the merge
+  button unlocks.
+- Keep the branch scoped to one change. Unrelated formatting or refactors in
+  the same PR make it harder to review.
+
 ## Getting set up
 
 You need [Rust](https://rustup.rs), Node 20+, pnpm, and the
