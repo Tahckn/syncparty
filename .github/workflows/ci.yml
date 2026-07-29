@@ -1,10 +1,12 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
+
+# `main` is protected and can only receive commits through a branch that has
+# passed these required checks. Running the same suite again after merge adds
+# no coverage and used to spend another complete CI cycle on identical code.
 
 # Neither job pushes, comments, or otherwise writes anything back — this is
 # read-only by design, including for PRs from forks.
@@ -19,6 +21,12 @@ jobs:
   backend:
     name: Backend (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      # Debug symbols are not useful in ephemeral lint/test jobs and make the
+      # large Tauri dependency graph slower to compile and cache.
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
     strategy:
       fail-fast: false
       matrix:
@@ -65,6 +73,7 @@ jobs:
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
