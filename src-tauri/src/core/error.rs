@@ -44,6 +44,31 @@ pub enum SyncPartyError {
     #[error("could not reach the room monitor: {0}")]
     MonitorFailed(String),
 
+    /// Every address in the invite failed a `tailscale ping`, not just a TCP
+    /// connect — Tailscale itself has no route to the host from here. By far
+    /// the most common cause is that this device was never shared into (or
+    /// dropped out of) the host's tailnet, not a syncparty bug.
+    #[error(
+        "could not find the host on Tailscale from this device. Ask them to check that this \
+         device still has access to their machine (Tailscale admin console → Share), and that \
+         Tailscale here is signed in and connected."
+    )]
+    NoTailscaleRoute,
+
+    /// The host answered a Tailscale ping, so the two machines can see each
+    /// other, but nothing was listening on the party's port.
+    #[error(
+        "found the host on Tailscale, but nothing answered on port {port} — the movie night may \
+         have already ended, or the server was not started"
+    )]
+    PartyNotRunning { port: u16 },
+
+    /// Every candidate address failed, but the ping diagnostic could not
+    /// tell why (Tailscale itself may be unreachable, or every candidate came
+    /// back "no response" rather than a clear yes/no).
+    #[error("could not reach the host at any of these addresses on port {port}: {addresses}")]
+    PartyUnreachable { addresses: String, port: u16 },
+
     #[error("{command} exited with status {status}: {stderr}")]
     CommandFailed {
         command: String,
@@ -83,6 +108,9 @@ impl SyncPartyError {
             Self::ServerStartFailed(_) => "server_start_failed",
             Self::InvalidInvite(_) => "invalid_invite",
             Self::MonitorFailed(_) => "monitor_failed",
+            Self::NoTailscaleRoute => "no_tailscale_route",
+            Self::PartyNotRunning { .. } => "party_not_running",
+            Self::PartyUnreachable { .. } => "party_unreachable",
             Self::CommandFailed { .. } => "command_failed",
             Self::Config(_) => "config",
             Self::Secret(_) => "secret",

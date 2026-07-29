@@ -52,6 +52,27 @@ pub struct PeerIdentity {
     pub hostname: Option<String>,
 }
 
+/// What happened when pinging a target at the Tailscale layer.
+///
+/// This is a diagnostic, not a connectivity check for the app itself — it
+/// exists to tell apart the two reasons a party is unreachable that look
+/// identical from a plain TCP timeout: the joining device has no route to the
+/// host at all (usually because it was never shared into the host's tailnet,
+/// or the share lapsed), versus the two machines can see each other on
+/// Tailscale just fine and the problem is with the server itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PingOutcome {
+    /// The peer answered. Tailscale-layer connectivity is fine.
+    Answered,
+    /// Tailscale does not know this peer at all — `tailscale ping` returns
+    /// this instantly, before attempting anything. The device has no route to
+    /// the target: it was never shared with, or the share expired.
+    UnknownPeer,
+    /// The peer is known but did not answer in time. Could mean it is
+    /// offline, its Tailscale is not signed in, or the network is just slow.
+    NoResponse,
+}
+
 /// The operations syncparty needs from Tailscale.
 ///
 /// A trait rather than a concrete type because the CLI backend here is the
@@ -71,6 +92,11 @@ pub trait TailscaleClient: Send + Sync {
     async fn bring_up(&self) -> Result<AuthFlow>;
 
     async fn whois(&self, ip: IpAddr) -> Result<PeerIdentity>;
+
+    /// Pings `target` at the Tailscale layer — not a connection to anything
+    /// syncparty runs, just "can this machine and that one see each other on
+    /// the tailnet at all". See [`PingOutcome`] for why this is worth asking.
+    async fn ping(&self, target: &str) -> Result<PingOutcome>;
 
     /// The address to hand out to guests.
     ///

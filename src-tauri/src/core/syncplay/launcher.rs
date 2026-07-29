@@ -13,6 +13,7 @@ use crate::core::config::ConfigStore;
 use crate::core::error::{Result, SyncPartyError};
 use crate::core::invite::Invite;
 use crate::core::process;
+use crate::core::tailscale::{CliTailscaleClient, PingOutcome, TailscaleClient};
 
 #[cfg(windows)]
 const CLIENT_FALLBACKS: &[&str] = &[
@@ -74,26 +75,86 @@ const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
 /// use: a masqueraded address only resolves inside the tailnet the node was
 /// shared into, and the host's own machine is not in that tailnet either.
 /// Trying each one is cheap and removes the guesswork.
+///
+/// Probed concurrently rather than in order: probing serially means whichever
+/// candidate happens to be listed first pays for every dead address ahead of
+/// the one that actually works, on top of the wait every *failing* guest
+/// already has to sit through before finding out none of them answer.
 pub async fn reachable_host(invite: &Invite) -> Result<String> {
     let candidates = invite.candidates();
 
-    for host in &candidates {
-        let address = format!("{host}:{}", invite.port);
+    let attempts = futures::future::join_all(
+        candidates
+            .iter()
+            .map(|host| async move { probe(host, invite.port).await.then(|| host.clone()) }),
+    )
+    .await;
 
-        if let Ok(Ok(stream)) =
-            tokio::time::timeout(PROBE_TIMEOUT, TcpStream::connect(&address)).await
-        {
-            // Nothing is sent on it; the connection was only ever the question.
-            drop(stream);
-            return Ok(host.clone());
-        }
+    if let Some(host) = attempts.into_iter().flatten().next() {
+        return Ok(host);
     }
 
-    Err(SyncPartyError::MonitorFailed(format!(
-        "none of these addresses answered on port {}: {}",
-        invite.port,
-        candidates.join(", ")
-    )))
+    Err(diagnose_unreachable(&candidates, invite.port).await)
+}
+
+async fn probe(host: &str, port: u16) -> bool {
+    let address = format!("{host}:{port}");
+
+    matches!(
+        tokio::time::timeout(PROBE_TIMEOUT, TcpStream::connect(&address)).await,
+        Ok(Ok(_stream)) // nothing is sent; the connection was only ever the question
+    )
+}
+
+/// Works out *why* every candidate failed, so the error says something a
+/// guest can act on instead of a bare list of addresses.
+///
+/// A plain TCP timeout cannot tell apart "this device has no route to the
+/// host on Tailscale at all" from "it does, and the app just is not running
+/// there" — both look identical from here. `tailscale ping` can, because an
+/// unknown peer is rejected instantly rather than timed out on, so this asks
+/// it before settling for the generic answer.
+async fn diagnose_unreachable(candidates: &[String], port: u16) -> SyncPartyError {
+    let Ok(tailscale) = CliTailscaleClient::discover() else {
+        return SyncPartyError::PartyUnreachable {
+            addresses: candidates.join(", "),
+            port,
+        };
+    };
+
+    let tailscale = &tailscale;
+    let pings = futures::future::join_all(candidates.iter().map(|host| async move {
+        tailscale
+            .ping(host)
+            .await
+            .unwrap_or(PingOutcome::NoResponse)
+    }))
+    .await;
+
+    classify_unreachable(&pings, candidates, port)
+}
+
+/// Turns a set of ping outcomes into the error to show.
+///
+/// Pulled out of [`diagnose_unreachable`] so the decision — one `Answered`
+/// means the port problem, every candidate `UnknownPeer` means no route,
+/// anything else stays a plain "did not answer" — can be checked without a
+/// real `tailscale` binary or network calls.
+fn classify_unreachable(pings: &[PingOutcome], candidates: &[String], port: u16) -> SyncPartyError {
+    if pings.contains(&PingOutcome::Answered) {
+        SyncPartyError::PartyNotRunning { port }
+    } else if !pings.is_empty()
+        && pings
+            .iter()
+            .all(|outcome| *outcome == PingOutcome::UnknownPeer)
+    {
+        SyncPartyError::NoTailscaleRoute
+    } else {
+        SyncPartyError::PartyUnreachable {
+            addresses: candidates.join(", "),
+            port,
+        }
+    }
 }
 
 pub struct ClientLauncher {
@@ -277,11 +338,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn reports_every_address_it_tried_when_none_answer() {
+    async fn diagnoses_why_when_nothing_answers() {
         let invite = Invite {
             host: "192.0.2.1".to_owned(),
             alternate_hosts: vec!["192.0.2.2".to_owned()],
-            // Nothing listens here, and the port is in the message.
             port: 8999,
             ..sample_invite()
         };
@@ -290,9 +350,67 @@ mod tests {
             .await
             .expect_err("nothing should answer");
 
-        let message = error.to_string();
-        assert!(message.contains("192.0.2.1"), "{message}");
-        assert!(message.contains("192.0.2.2"), "{message}");
-        assert!(message.contains("8999"), "{message}");
+        // 192.0.2.0/24 is never a real Tailscale peer, so on a machine that
+        // has Tailscale this comes back as "no route" — the actual point of
+        // the diagnosis. On one that does not (most CI runners), there is
+        // nothing to ask, so it falls back to the plain address list. Both
+        // are correct for their machine; this test runs on either.
+        if crate::core::tailscale::find_tailscale().is_some() {
+            assert_eq!(error.kind(), "no_tailscale_route");
+        } else {
+            assert_eq!(error.kind(), "party_unreachable");
+            let message = error.to_string();
+            assert!(message.contains("192.0.2.1"), "{message}");
+            assert!(message.contains("192.0.2.2"), "{message}");
+            assert!(message.contains("8999"), "{message}");
+        }
+    }
+
+    fn candidates(hosts: &[&str]) -> Vec<String> {
+        hosts.iter().map(|h| (*h).to_owned()).collect()
+    }
+
+    #[test]
+    fn one_answered_ping_means_the_route_is_fine_and_the_app_is_the_problem() {
+        let pings = [
+            PingOutcome::UnknownPeer,
+            PingOutcome::Answered,
+            PingOutcome::NoResponse,
+        ];
+
+        let error = classify_unreachable(&pings, &candidates(&["a", "b", "c"]), 8999);
+
+        assert_eq!(error.kind(), "party_not_running");
+    }
+
+    #[test]
+    fn every_candidate_unknown_means_no_route_at_all() {
+        let pings = [PingOutcome::UnknownPeer, PingOutcome::UnknownPeer];
+
+        let error = classify_unreachable(&pings, &candidates(&["a", "b"]), 8999);
+
+        assert_eq!(error.kind(), "no_tailscale_route");
+    }
+
+    #[test]
+    fn a_mix_of_unknown_and_no_response_stays_the_plain_answer() {
+        // Not the same as "no route": at least one candidate was a real,
+        // known peer that simply did not reply, so claiming "no route" would
+        // overstate what the diagnosis actually found.
+        let pings = [PingOutcome::UnknownPeer, PingOutcome::NoResponse];
+
+        let error = classify_unreachable(&pings, &candidates(&["a", "b"]), 8999);
+
+        assert_eq!(error.kind(), "party_unreachable");
+    }
+
+    #[test]
+    fn no_ping_results_at_all_falls_back_to_the_plain_answer() {
+        // Guards the empty case explicitly: `all()` on an empty iterator is
+        // vacuously true, which would otherwise misreport "no candidates" as
+        // "no route".
+        let error = classify_unreachable(&[], &candidates(&["a"]), 8999);
+
+        assert_eq!(error.kind(), "party_unreachable");
     }
 }

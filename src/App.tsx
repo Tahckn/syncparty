@@ -143,6 +143,9 @@ function FailureBanner() {
   const knownKeys: Record<string, MessageKey> = {
     tailscale_login_required: "error.tailscale_login_required",
     dependency_missing: "error.dependency_missing",
+    no_tailscale_route: "error.no_tailscale_route",
+    party_not_running: "error.party_not_running",
+    party_unreachable: "error.party_unreachable",
   };
   const headline = knownKeys[failure.kind];
   const authUrl = failure.authUrl;

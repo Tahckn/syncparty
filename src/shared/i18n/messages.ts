@@ -134,6 +134,11 @@ export const en = {
   "error.tailscale_login_required": "Tailscale needs you to sign in.",
   "error.openLogin": "Open sign-in page",
   "error.dependency_missing": "A required program is missing.",
+  "error.no_tailscale_route":
+    "This device has no route to the host on Tailscale.",
+  "error.party_not_running":
+    "The host is reachable, but nothing answered there.",
+  "error.party_unreachable": "Could not reach the host.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -265,6 +270,10 @@ export const tr: Messages = {
   "error.tailscale_login_required": "Tailscale girişi yapman gerekiyor.",
   "error.openLogin": "Giriş sayfasını aç",
   "error.dependency_missing": "Gerekli bir program eksik.",
+  "error.no_tailscale_route":
+    "Bu cihazın Tailscale üzerinden host'a erişimi yok.",
+  "error.party_not_running": "Host'a ulaşılıyor ama orada bir yanıt yok.",
+  "error.party_unreachable": "Host'a ulaşılamadı.",
 };
 
 export const dictionaries: Record<string, Messages> = { en, tr };

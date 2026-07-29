@@ -9,7 +9,9 @@ use serde::Deserialize;
 
 use crate::core::error::{Result, SyncPartyError};
 use crate::core::process;
-use crate::core::tailscale::{locator, AuthFlow, PeerIdentity, TailnetStatus, TailscaleClient};
+use crate::core::tailscale::{
+    locator, AuthFlow, PeerIdentity, PingOutcome, TailnetStatus, TailscaleClient,
+};
 
 /// How long to wait for the daemon to come up after `tailscale up`.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -139,6 +141,30 @@ impl TailscaleClient for CliTailscaleClient {
         })
     }
 
+    async fn ping(&self, target: &str) -> Result<PingOutcome> {
+        // A raw `output()` rather than `process::capture`, because a failed
+        // ping (exit 1) is one of the two answers this is asking for, not an
+        // error — the text distinguishing "no route" from "no reply" is on
+        // stdout either way.
+        let output = process::command(&self.executable)
+            .args(["ping", "--c", "1", "--timeout", "3s", target])
+            .output()
+            .await
+            .map_err(|error| SyncPartyError::CommandFailed {
+                command: "tailscale ping".to_owned(),
+                status: "could not start".to_owned(),
+                stderr: error.to_string(),
+            })?;
+
+        let text = format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        Ok(classify_ping(output.status.success(), &text))
+    }
+
     async fn shareable_address(&self) -> Result<Option<String>> {
         let status = self.status_json().await?;
 
@@ -240,6 +266,24 @@ struct HostInfoJson {
     hostname: Option<String>,
 }
 
+/// Turns `tailscale ping`'s exit status and combined output into an outcome.
+///
+/// A separate function so this can be checked against real captured output
+/// without spawning a process: `tailscale ping` reports "no matching peer"
+/// the instant the target is not in the local netmap at all, which is the one
+/// signal that distinguishes "never had a route" from "had a route, didn't
+/// answer" — and it is worth pinning down exactly, since guessing at the
+/// wrong substring here would silently misdiagnose every failure the same way.
+fn classify_ping(succeeded: bool, output: &str) -> PingOutcome {
+    if succeeded {
+        PingOutcome::Answered
+    } else if output.contains("no matching peer") {
+        PingOutcome::UnknownPeer
+    } else {
+        PingOutcome::NoResponse
+    }
+}
+
 #[derive(Debug, Default, Deserialize)]
 struct UserProfileJson {
     #[serde(rename = "DisplayName")]
@@ -318,5 +362,32 @@ mod tests {
         let profile = whois.user_profile.expect("profile");
         assert!(profile.display_name.is_none());
         assert_eq!(profile.login_name.as_deref(), Some("ahmet@example.com"));
+    }
+
+    #[test]
+    fn a_successful_ping_is_answered_regardless_of_its_text() {
+        assert_eq!(
+            classify_ping(true, "pong from desktop-abc123 via DERP in 41ms"),
+            PingOutcome::Answered
+        );
+    }
+
+    #[test]
+    fn an_unknown_peer_is_reported_before_any_timeout_is_reached() {
+        // The real message `tailscale ping` gives for a target it has no
+        // netmap entry for at all — this is what a guest who was never
+        // shared into the host's tailnet actually sees.
+        assert_eq!(
+            classify_ping(false, "no matching peer\n"),
+            PingOutcome::UnknownPeer
+        );
+    }
+
+    #[test]
+    fn a_known_peer_that_stays_silent_is_no_response_not_unknown() {
+        assert_eq!(
+            classify_ping(false, "no reply from 100.64.0.9 after 3s\n"),
+            PingOutcome::NoResponse
+        );
     }
 }
